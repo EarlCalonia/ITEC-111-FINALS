@@ -1,42 +1,58 @@
 /* --- NAVBAR CONTAINER --- */
 .navbar {
-  height: 70px;
-  background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%); /* Primary Blue Gradient */
+  height: 72px;
+  /* RESTORED: Blue Gradient Background */
+  background: linear-gradient(90deg, var(--primary-color) 0%, #2563eb 100%);
   color: white;
   display: flex;
   align-items: center;
-  padding: 0 24px;
-  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.2);
-  flex-shrink: 0;
-  z-index: 50;
+  
+  /* FIXED: This padding calculation ensures the header content aligns 
+     perfectly with the 1200px content on the page below it. */
+  padding: 0 max(2rem, calc((100% - 1200px) / 2));
+  
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.2); /* Soft blue shadow */
 }
 
 /* --- LOGO --- */
 .logo-container {
   min-width: 200px;
+  display: flex;
+  align-items: center;
 }
 
 .logo {
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.5px;
-  color: white;
+  color: white; /* White text on blue */
+  text-decoration: none;
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* --- NAVIGATION LINKS --- */
+/* --- NAVIGATION LINKS (Centered Pill) --- */
 .nav-links {
   display: flex;
-  gap: 8px;
-  margin-left: auto; /* Pushes links towards the right */
-  margin-right: 2rem; /* Spacing before profile */
+  gap: 6px;
+  /* FIXED: Centers the buttons in the middle of the header */
+  margin: 0 auto; 
+  
+  /* Glassmorphism Effect for the container */
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 5px;
+  border-radius: 12px;
+  backdrop-filter: blur(5px);
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 8px 16px;
   color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
   border-radius: 8px;
@@ -46,33 +62,28 @@
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
   color: white;
-  transform: translateY(-1px);
 }
 
+/* Active State: White Pill on Blue */
 .nav-item.active {
   background: white;
-  color: var(--primary-color); /* #3b82f6 */
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  color: var(--primary-color);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
-/* --- PROFILE SECTION (New Design) --- */
+/* --- PROFILE SECTION --- */
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 12px;
-  /* Glassmorphism Pill Effect */
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 6px 12px 6px 8px;
-  border-radius: 50px; /* Pill Shape */
-  transition: background 0.2s;
-}
-
-.nav-right:hover {
-  background: rgba(255, 255, 255, 0.25);
+  justify-content: flex-end;
+  gap: 16px;
+  min-width: 200px; /* Balances the left logo container */
+  padding-left: 1.5rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.2); /* Subtle divider */
+  height: 40px;
 }
 
 .user-profile {
@@ -82,8 +93,8 @@
 }
 
 .avatar { 
-  width: 36px; 
-  height: 36px; 
+  width: 38px; 
+  height: 38px; 
   background: white; 
   color: var(--primary-color); 
   border-radius: 50%; 
@@ -92,51 +103,45 @@
   justify-content: center; 
   font-weight: 800; 
   font-size: 0.9rem; 
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
 .user-info {
   display: flex;
   flex-direction: column;
-  line-height: 1.1;
+  line-height: 1.2;
 }
 
 .user-name {
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   color: white;
 }
 
 .user-role {
   font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.85);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* Divider Line */
-.divider {
-  width: 1px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
 }
 
 /* --- LOGOUT BUTTON --- */
 .logout-btn {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.15); /* Semi-transparent white */
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   transition: all 0.2s;
 }
 
 .logout-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: #fee2e2; /* Slight red tint on hover */
-  transform: scale(1.1);
+  background: #fee2e2;
+  color: var(--danger);
+  border-color: #fee2e2;
+  transform: translateY(-1px);
 }

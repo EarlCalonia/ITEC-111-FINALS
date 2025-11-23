@@ -1,47 +1,4 @@
-/* --- 1. TOOLBAR & SEARCH --- */
-.patients-toolbar {
-  padding: 1.25rem 1.5rem; /* Increased padding for breathing room */
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between; /* Pushes search to left, meta to right */
-  background-color: #fff;
-}
-
-.search-wrapper { 
-  position: relative; 
-  width: 320px; 
-}
-
-.search-icon { 
-  position: absolute; 
-  left: 12px; 
-  top: 50%; 
-  transform: translateY(-50%); 
-  color: var(--text-light); 
-}
-
-.search-input { 
-  width: 100%; 
-  padding: 0.75rem 1rem 0.75rem 2.75rem; 
-  border: 1px solid var(--border); 
-  border-radius: 8px; 
-  font-size: 0.9rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.search-input:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  outline: none;
-}
-
-.patients-toolbar-meta {
-  font-size: 0.85rem;
-  color: var(--text-light);
-}
-
-/* --- 2. TABLE SORTING --- */
+/* --- TABLE SORTING --- */
 th.sortable {
   cursor: pointer;
   user-select: none;
@@ -66,7 +23,7 @@ th.sortable:hover {
   color: var(--text-light);
 }
 
-/* --- 3. ACTIONS --- */
+/* --- ACTIONS --- */
 .header-actions {
   display: flex;
   gap: 10px;
@@ -91,14 +48,14 @@ th.sortable:hover {
 .icon-btn.edit { color: var(--success); }
 .icon-btn.delete { color: var(--danger); }
 
-/* --- 4. PAGINATION (Redesigned) --- */
+/* --- PAGINATION --- */
 .pagination-controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--border);
-  background-color: #f8fafc; /* Slightly grey footer */
+  background-color: #f8fafc; 
 }
 
 .pagination-pages {
@@ -133,133 +90,7 @@ th.sortable:hover {
   border-color: var(--primary-color);
 }
 
-.pagination-summary {
-  font-size: 0.85rem;
-  color: var(--text-light);
-}
-
 .pagination-actions {
   display: flex;
   gap: 8px;
-}
-
-/* --- 5. MODAL STYLING (Fixed Design) --- */
-
-/* The dark overlay background */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5); /* Dimmed background */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  backdrop-filter: blur(3px); /* Adds a modern blur effect */
-}
-
-/* The white modal box */
-.modal-content {
-  background: white;
-  width: 500px;
-  max-width: 90%;
-  border-radius: 16px; /* Smoother corners */
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: slideIn 0.2s ease-out;
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(10px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* Header: Title and Close Button */
-.modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: #fff;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--text-dark);
-}
-
-/* Body: The Form Area */
-.modal-body {
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem; /* Vertical spacing between form groups */
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-/* Form Groups: Label + Input Wrapper */
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem; /* Space between label and input */
-  width: 100%;
-}
-
-/* Labels */
-.form-label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-dark);
-}
-
-/* Inputs & Selects */
-.form-control {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 0.95rem;
-  color: var(--text-dark);
-  transition: all 0.2s;
-  background-color: #fff;
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); /* Blue glow */
-}
-
-/* Footer: Buttons */
-.modal-footer {
-  padding: 1.25rem 1.5rem;
-  background-color: #f8fafc;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-/* Fix for the Close 'X' Button to make it look clickable */
-.modal-header button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px;
-  border-radius: 6px;
-  transition: background 0.2s;
-  color: var(--text-light);
-}
-
-.modal-header button:hover {
-  background-color: #f1f5f9;
-  color: var(--danger);
 }

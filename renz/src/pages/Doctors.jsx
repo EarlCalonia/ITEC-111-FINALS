@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import '../styles/Doctors.css';
-import { Plus, Edit2, Trash2, X, Search, Phone, Mail, Calendar, Clock, ShieldAlert } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Search, Phone, Mail, Clock, ShieldAlert } from 'lucide-react';
 
 // Initial Mock Data
 const INITIAL_DOCTORS = [
@@ -143,32 +143,43 @@ export default function Doctors() {
 
   return (
     <div className="animate-fade-in">
+      
+      {/* --- 1. UNIFIED HEADER (Match Patients/Appointments) --- */}
       <div className="page-header">
         <div>
           <h2 className="page-title">Doctor Availability</h2>
-          <p style={{color: 'var(--text-light)', fontSize: '0.9rem'}}>Manage profiles, schedules, and time-off</p>
-        </div>
-      </div>
-
-      {/* Controls Bar */}
-      <div className="doctors-controls">
-        <div className="search-wrapper">
-          <Search size={18} style={{position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)'}} />
-          <input 
-            className="form-control" 
-            style={{paddingLeft: '2.5rem'}} 
-            placeholder="Search doctors..." 
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
+          <p className="page-subtitle">Manage profiles, schedules, and time-off</p>
         </div>
         <div style={{display: 'flex', gap: '10px'}}>
-          <button className="btn btn-warning" onClick={() => handleOpenBlock('')}>
+          <button 
+            className="btn btn-outline" 
+            style={{color: 'var(--warning)', borderColor: 'var(--warning)'}} 
+            onClick={() => handleOpenBlock('')}
+          >
             <ShieldAlert size={18} /> Block Time
           </button>
           <button className="btn btn-primary" onClick={handleOpenAdd}>
             <Plus size={18} /> Add Doctor
           </button>
+        </div>
+      </div>
+
+      {/* --- 2. UNIFIED FILTER CARD --- */}
+      <div className="dashboard-filters-card">
+        <div className="dashboard-filters-row">
+          {/* Search Input taking full width */}
+          <div className="dashboard-filter-group" style={{ gridColumn: '1 / -1' }}>
+            <label>Search Doctors</label>
+            <div className="filter-input-wrapper">
+              <Search size={16} className="filter-input-icon" />
+              <input 
+                type="text" 
+                placeholder="Search by name or specialization..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -243,7 +254,7 @@ export default function Doctors() {
           <div className="modal-content">
             <div className="modal-header">
               <h3 style={{ fontWeight: 'bold' }}>{editingDoctor ? 'Edit Profile' : 'Add New Doctor'}</h3>
-              <button onClick={() => setIsDoctorModalOpen(false)} style={{border:'none', background:'none', cursor:'pointer'}}><X size={20}/></button>
+              <button onClick={() => setIsDoctorModalOpen(false)} className="modal-close"><X size={20}/></button>
             </div>
             <form onSubmit={handleSaveDoctor}>
               <div className="modal-body">
@@ -281,7 +292,7 @@ export default function Doctors() {
           <div className="modal-content">
             <div className="modal-header">
               <h3 style={{ fontWeight: 'bold' }}>Block Time Slot</h3>
-              <button onClick={() => setIsBlockModalOpen(false)} style={{border:'none', background:'none', cursor:'pointer'}}><X size={20}/></button>
+              <button onClick={() => setIsBlockModalOpen(false)} className="modal-close"><X size={20}/></button>
             </div>
             <form onSubmit={handleSaveBlock}>
               <div className="modal-body">

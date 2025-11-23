@@ -1,7 +1,7 @@
 /* --- 1. VARIABLES & THEME --- */
 :root {
   /* NEW: Lighter, Modern Blue Palette */
-  --primary-color: #3b82f6;   /* Bright Royal Blue (was Dark Navy) */
+  --primary-color: #3b82f6;   /* Bright Royal Blue */
   --primary-hover: #2563eb;   /* Slightly darker for hover */
   --accent-color: #0ea5e9;    /* Sky Blue */
   --bg-color: #f0f9ff;        /* Very light blue tint background */
@@ -14,16 +14,18 @@
   --danger: #ef4444;
   --success: #10b981;
   --warning: #f59e0b;
-  
 }
 
-* { box-sizing: border-box;
-   margin: 0; padding: 0; 
-   font-family: 'Poppins', sans-serif; 
-  }
-body { background-color: var(--bg-color);
-   color: var(--text-dark);
-   }
+* { 
+  box-sizing: border-box;
+  margin: 0; padding: 0; 
+  font-family: 'Poppins', sans-serif; 
+}
+
+body { 
+  background-color: var(--bg-color);
+  color: var(--text-dark);
+}
 
 /* --- 2. ANIMATIONS --- */
 @keyframes fadeIn {
@@ -41,19 +43,60 @@ body { background-color: var(--bg-color);
   to { transform: scale(1); opacity: 1; }
 }
 
-/* Animation Utility Classes */
 .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
 .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
 /* --- 3. LAYOUT WRAPPERS --- */
-.app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; }
-.main-content { flex: 1; overflow-y: visible; padding: 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+.app-container { 
+  display: flex; 
+  flex-direction: column; 
+  min-height: 100vh; 
+  width: 100%; 
+  background-color: var(--bg-color); 
+}
+
+.main-content { 
+  flex: 1; 
+  padding: 2rem; 
+  max-width: 1200px; 
+  margin: 0 auto; 
+  width: 100%; 
+}
+
+/* --- PAGE HEADER (Global Fix) --- */
+/* --- PAGE HEADER --- */
+.page-header {
+  display: flex;
+  justify-content: space-between; /* Pushes Title left, Button right */
+  align-items: center;
+  width: 100%;                    /* Forces header to take full width */
+  margin-bottom: 1.5rem;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin-top: 0.25rem;
+}
+
+/* FORCE BUTTON TO RIGHT */
+.page-header .btn {
+  margin-left: auto; /* This pushes the button to the far right edge */
+}
 
 /* --- 4. COMPONENTS --- */
 .card { 
   background: var(--white); 
   border: 1px solid var(--border); 
-  border-radius: 16px; /* Softer corners */
+  border-radius: 16px; 
   padding: 1.5rem; 
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s, box-shadow 0.2s;
@@ -63,13 +106,12 @@ body { background-color: var(--bg-color);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
 }
 
-/* Buttons */
 .btn { 
   padding: 0.7rem 1.4rem; border-radius: 8px; border: none; font-weight: 600; 
   cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; 
   transition: all 0.2s; 
 }
-.btn:active { transform: scale(0.97); } /* Click effect */
+.btn:active { transform: scale(0.97); } 
 
 .btn-primary { background: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); }
 .btn-primary:hover { background: var(--primary-hover); box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4); }
@@ -77,84 +119,128 @@ body { background-color: var(--bg-color);
 .btn-outline { background: white; border: 1px solid var(--border); color: var(--text-dark); }
 .btn-outline:hover { background: #f8fafc; border-color: var(--primary-color); color: var(--primary-color); }
 
-/* Tables */
-.table-container { overflow-x: visible; border-radius: 12px; border: 1px solid var(--border); }
-table { width: auto; border-collapse: collapse; }
-th { text-align: left; padding: 1rem; background: #f1f5f9; color: var(--text-light); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
-td { padding: 1rem; border-top: 1px solid var(--border); font-size: 0.95rem; }
-tr:nth-child(even) td { background-color: #f3f3f3; }
+.table-container { 
+  overflow-x: auto; /* Ensures table scrolls instead of breaking layout */
+  border-radius: 12px; 
+  border: 1px solid var(--border); 
+}
+
+table { 
+  width: 100%; 
+  border-collapse: collapse; 
+}
+
+th { 
+  text-align: left; 
+  padding: 1rem 0.75rem; /* REDUCED horizontal padding (was 1rem) */
+  background: #f1f5f9; 
+  color: var(--text-light); 
+  font-size: 0.8rem; 
+  font-weight: 600; 
+  text-transform: uppercase; 
+  letter-spacing: 0.05em; 
+  white-space: nowrap; /* Prevents headers from wrapping awkwardly */
+}
+
+td { 
+  padding: 1rem 0.75rem; /* REDUCED horizontal padding */
+  border-top: 1px solid var(--border); 
+  font-size: 0.9rem; 
+}
+
+tr:nth-child(even) td { background-color: #f8fafc; }
 tr:hover td { background-color: #f1f5f9; }
 
 .badge { padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; }
 .badge-green { background: #dcfce7; color: #15803d; }
 .badge-blue { background: #dbeafe; color: #1e40af; }
 
-/* --- 5. FILTER BAR (Dashboard & Appointments) --- */
+/* Add these Global Icon Button Styles */
+.icon-btn { 
+  padding: 6px;
+  border-radius: 6px;
+  background: transparent; 
+  border: none; 
+  cursor: pointer; 
+  transition: all 0.2s; 
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-light);
+}
+.icon-btn:hover { background-color: #f1f5f9; color: var(--primary-color); }
+.icon-btn.view:hover { color: var(--accent-color); background-color: #e0f2fe; }
+.icon-btn.edit:hover { color: var(--warning); background-color: #fef3c7; }
+.icon-btn.delete:hover { color: var(--danger); background-color: #fee2e2; }
+
+/* --- 5. FILTER BAR --- */
 .dashboard-filters-card {
   background: var(--white);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 0.75rem 1rem 0.9rem;
+  padding: 1.25rem;
   margin-bottom: 1rem;
   box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
 }
 
 .dashboard-filters-title {
   font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-light);
-  margin-bottom: 0.5rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
 }
 
 .dashboard-filters-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  align-items: center;
-  padding-bottom: 0.25rem;
-  
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr; 
+  gap: 1rem;
+  align-items: end; 
 }
 
 .dashboard-filter-group {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: max-content;
-}
-
-.dashboard-filter-group.filter-grow {
-  flex: 1;
-  min-width: 220px;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
 .dashboard-filter-group label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-light);
-  white-space: nowrap;
+  margin-left: 2px;
 }
 
 .dashboard-filter-group select,
 .dashboard-filter-group input {
-  padding: 0.4rem 0.65rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
   border-radius: 8px;
   border: 1px solid var(--border);
-  font-size: 0.85rem;
-  background: var(--white);
-  min-width: 150px;
+  font-size: 0.875rem;
+  background-color: #f8fafc;
+  transition: all 0.2s;
+  height: 40px; 
+}
+
+.dashboard-filter-group select:focus,
+.dashboard-filter-group input:focus {
+  background-color: #fff;
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .filter-input-wrapper {
   position: relative;
-  flex: 1;
-  min-width: 240px;
+  width: 100%;
 }
 
 .filter-input-wrapper input {
-  width: 100%;
-  padding: 0.5rem 0.75rem 0.5rem 2.3rem;
+  padding-left: 2.4rem;
 }
 
 .filter-input-icon {
@@ -163,9 +249,26 @@ tr:hover td { background-color: #f1f5f9; }
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-light);
+  pointer-events: none;
 }
 
-/* --- 5. MODAL STYLES (Appointments) --- */
+@media (max-width: 1024px) {
+  .dashboard-filters-row {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 1rem;
+  }
+  .dashboard-filter-group:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-filters-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- 6. MODAL STYLES --- */
 .modal-backdrop {
   position: fixed;
   inset: 0;
