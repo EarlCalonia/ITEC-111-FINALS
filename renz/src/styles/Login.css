@@ -10,7 +10,14 @@
 /* --- LEFT SIDE (BRANDING) --- */
 .login-brand-section {
   flex: 1;
-  background: linear-gradient(135deg, var(--primary-color) 0%, #1e40af 100%);
+  /* 1. The Overlay: Blue gradient with 85-90% opacity to make text readable */
+  /* 2. The Image: A high-quality clinic photo */
+  background: 
+    linear-gradient(135deg, rgba(59, 130, 246, 0.90) 0%, rgba(30, 64, 175, 0.95) 100%),
+    url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=2053&auto=format&fit=crop');
+  
+  background-size: cover;
+  background-position: center;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -20,17 +27,7 @@
   position: relative;
 }
 
-/* Decorative circle pattern background (Optional subtle effect) */
-.login-brand-section::before {
-  content: '';
-  position: absolute;
-  top: -10%;
-  left: -10%;
-  width: 50%;
-  height: 50%;
-  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
-  border-radius: 50%;
-}
+/* Removed the old decorative circle (::before) as it conflicts with the image */
 
 .brand-logo {
   font-size: 3rem;

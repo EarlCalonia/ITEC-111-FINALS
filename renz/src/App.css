@@ -1,372 +1,148 @@
 /* --- 1. VARIABLES & THEME --- */
 :root {
-  /* NEW: Lighter, Modern Blue Palette */
   --primary-color: #3b82f6;   /* Bright Royal Blue */
-  --primary-hover: #2563eb;   /* Slightly darker for hover */
+  --primary-hover: #2563eb;   
   --accent-color: #0ea5e9;    /* Sky Blue */
-  --bg-color: #f0f9ff;        /* Very light blue tint background */
+  --bg-color: #f0f9ff;        
   --white: #ffffff;
   
   --text-dark: #1e293b;       /* Slate 800 */
   --text-light: #64748b;      /* Slate 500 */
-  --border: #e2e8f0;          /* Slate 200 */
+  --border: #e2e8f0;          
   
   --danger: #ef4444;
   --success: #10b981;
   --warning: #f59e0b;
 }
 
-* { 
-  box-sizing: border-box;
-  margin: 0; padding: 0; 
-  font-family: 'Poppins', sans-serif; 
-}
-
-body { 
-  background-color: var(--bg-color);
-  color: var(--text-dark);
-}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
+body { background-color: var(--bg-color); color: var(--text-dark); }
 
 /* --- 2. ANIMATIONS --- */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes scaleIn {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
 .animate-slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-/* --- 3. LAYOUT WRAPPERS --- */
-.app-container { 
-  display: flex; 
-  flex-direction: column; 
-  min-height: 100vh; 
-  width: 100%; 
-  background-color: var(--bg-color); 
-}
+/* --- 3. GLOBAL LAYOUT --- */
+.app-container { display: flex; flex-direction: column; min-height: 100vh; width: 100%; background-color: var(--bg-color); }
+.main-content { flex: 1; padding: 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
 
-.main-content { 
-  flex: 1; 
-  padding: 2rem; 
-  max-width: 1200px; 
-  margin: 0 auto; 
-  width: 100%; 
-}
-
-/* --- PAGE HEADER (Global Fix) --- */
-/* --- PAGE HEADER --- */
-.page-header {
-  display: flex;
-  justify-content: space-between; /* Pushes Title left, Button right */
-  align-items: center;
-  width: 100%;                    /* Forces header to take full width */
-  margin-bottom: 1.5rem;
-}
-
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-dark);
-  margin: 0;
-  line-height: 1.2;
-}
-
-.page-subtitle {
-  font-size: 0.9rem;
-  color: var(--text-light);
-  margin-top: 0.25rem;
-}
-
-/* FORCE BUTTON TO RIGHT */
-.page-header .btn {
-  margin-left: auto; /* This pushes the button to the far right edge */
-}
+.page-header { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 1.5rem; }
+.page-title { font-size: 1.875rem; font-weight: 700; letter-spacing: -0.025em; color: var(--text-dark); margin: 0; line-height: 1.2; }
+.page-subtitle { font-size: 1rem; color: var(--text-light); margin-top: 0.5rem; font-weight: 400; }
+.page-header .btn { margin-left: auto; }
 
 /* --- 4. COMPONENTS --- */
-.card { 
-  background: var(--white); 
-  border: 1px solid var(--border); 
-  border-radius: 16px; 
-  padding: 1.5rem; 
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-}
+.card { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: transform 0.2s, box-shadow 0.2s; }
+.card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05); }
 
-.btn { 
-  padding: 0.7rem 1.4rem; border-radius: 8px; border: none; font-weight: 600; 
-  cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; 
-  transition: all 0.2s; 
-}
-.btn:active { transform: scale(0.97); } 
-
+.btn { padding: 0.7rem 1.4rem; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; transition: all 0.2s; }
+.btn:active { transform: scale(0.97); }
 .btn-primary { background: var(--primary-color); color: white; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); }
 .btn-primary:hover { background: var(--primary-hover); box-shadow: 0 6px 15px rgba(59, 130, 246, 0.4); }
-
 .btn-outline { background: white; border: 1px solid var(--border); color: var(--text-dark); }
 .btn-outline:hover { background: #f8fafc; border-color: var(--primary-color); color: var(--primary-color); }
-
-.table-container { 
-  overflow-x: auto; /* Ensures table scrolls instead of breaking layout */
-  border-radius: 12px; 
-  border: 1px solid var(--border); 
-}
-
-table { 
-  width: 100%; 
-  border-collapse: collapse; 
-}
-
-th { 
-  text-align: left; 
-  padding: 1rem 0.75rem; /* REDUCED horizontal padding (was 1rem) */
-  background: #f1f5f9; 
-  color: var(--text-light); 
-  font-size: 0.8rem; 
-  font-weight: 600; 
-  text-transform: uppercase; 
-  letter-spacing: 0.05em; 
-  white-space: nowrap; /* Prevents headers from wrapping awkwardly */
-}
-
-td { 
-  padding: 1rem 0.75rem; /* REDUCED horizontal padding */
-  border-top: 1px solid var(--border); 
-  font-size: 0.9rem; 
-}
-
-tr:nth-child(even) td { background-color: #f8fafc; }
-tr:hover td { background-color: #f1f5f9; }
 
 .badge { padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; }
 .badge-green { background: #dcfce7; color: #15803d; }
 .badge-blue { background: #dbeafe; color: #1e40af; }
+.badge-completed { background: #f1f5f9; color: #64748b; }
 
-/* Add these Global Icon Button Styles */
-.icon-btn { 
-  padding: 6px;
-  border-radius: 6px;
-  background: transparent; 
-  border: none; 
-  cursor: pointer; 
-  transition: all 0.2s; 
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-light);
-}
+.icon-btn { padding: 6px; border-radius: 6px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; color: var(--text-light); }
 .icon-btn:hover { background-color: #f1f5f9; color: var(--primary-color); }
 .icon-btn.view:hover { color: var(--accent-color); background-color: #e0f2fe; }
 .icon-btn.edit:hover { color: var(--warning); background-color: #fef3c7; }
 .icon-btn.delete:hover { color: var(--danger); background-color: #fee2e2; }
 
-/* --- 5. FILTER BAR --- */
-.dashboard-filters-card {
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.25rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08);
+/* --- 5. MODERN SELECT INPUTS --- */
+select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 1rem; padding-right: 2.5rem !important;
 }
 
-.dashboard-filters-title {
-  font-size: 0.8rem;
-  font-weight: 700;
+/* Placeholder styling for Select inputs */
+select:required:invalid,
+select option[value=""] {
+  color: #94a3b8; /* Gray-400 (matches standard placeholder color) */
+}
+
+/* Ensure valid selection turns black */
+select:required:valid {
   color: var(--text-dark);
-  margin-bottom: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.8;
 }
 
-.dashboard-filters-row {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr; 
-  gap: 1rem;
-  align-items: end; 
+/* Standard Input Placeholders */
+::placeholder {
+  color: #94a3b8;
+  opacity: 1; /* Firefox fix */
 }
 
-.dashboard-filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-width: 0;
+/* --- 6. FILTERS --- */
+.dashboard-filters-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08); }
+.dashboard-filters-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 1rem; align-items: end; }
+.dashboard-filter-group { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+.dashboard-filter-group label { font-size: 0.75rem; font-weight: 600; color: var(--text-light); margin-left: 2px; }
+.dashboard-filter-group select, .dashboard-filter-group input { width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.875rem; background-color: #f8fafc; transition: all 0.2s; height: 40px; }
+.filter-input-wrapper { position: relative; width: 100%; }
+.filter-input-wrapper input { padding-left: 2.4rem; }
+.filter-input-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-light); pointer-events: none; }
+
+/* --- 7. MODALS --- */
+.modal-overlay { position: fixed; inset: 0; background-color: rgba(15, 23, 42, 0.45); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal-content { background: var(--white); border-radius: 16px; padding: 1.75rem; max-width: 520px; width: 92%; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35); position: relative; display: flex; flex-direction: column; max-height: 90vh; }
+.modal-header { padding-bottom: 1rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.modal-title { font-size: 1.25rem; font-weight: 700; color: var(--text-dark); margin: 0; }
+.modal-close { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 6px; cursor: pointer; color: var(--text-light); display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+.modal-close:hover { background: #fee2e2; color: var(--danger); border-color: #fecaca; }
+.modal-body { margin-bottom: 1.5rem; color: var(--text-dark); overflow-y: auto; }
+.modal-footer { padding-top: 1rem; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; }
+
+/* --- 8. FORMS --- */
+.form-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.form-label { font-size: 0.85rem; font-weight: 600; color: var(--text-dark); }
+.form-control { padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.95rem; transition: all 0.2s; background-color: #f8fafc; width: 100%; }
+.form-control:focus { outline: none; background-color: white; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+
+/* --- 9. TABLES --- */
+.table-container { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; padding: 1rem 0.75rem; background: #f1f5f9; color: var(--text-light); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; white-space: nowrap; }
+td { padding: 1rem 0.75rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+tr:nth-child(even) td { background-color: #f8fafc; }
+tr:hover td { background-color: #f1f5f9; }
+
+/* --- 10. VIEW DETAILS --- */
+.view-details { display: flex; flex-direction: column; gap: 1.25rem; }
+.detail-group { border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem; }
+.detail-group:last-child { border-bottom: none; }
+.detail-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-light); margin-bottom: 0.25rem; font-weight: 600; }
+.detail-value { font-size: 1rem; color: var(--text-dark); font-weight: 500; }
+
+/* --- DATE INPUT PLACEHOLDER FIX --- */
+/* 1. Default state (Filled): Dark Text */
+input[type="date"] {
+  color: var(--text-dark);
+  font-family: inherit; /* Ensures font matches */
 }
 
-.dashboard-filter-group label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-light);
-  margin-left: 2px;
+/* 2. Empty state (Placeholder): Gray Text */
+/* This works because we added 'required' to the inputs. 
+   If it is empty, it counts as 'invalid', so we style it gray. */
+input[type="date"]:required:invalid {
+  color: #94a3b8;
 }
 
-.dashboard-filter-group select,
-.dashboard-filter-group input {
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  font-size: 0.875rem;
-  background-color: #f8fafc;
-  transition: all 0.2s;
-  height: 40px; 
-}
-
-.dashboard-filter-group select:focus,
-.dashboard-filter-group input:focus {
-  background-color: #fff;
-  border-color: var(--primary-color);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.filter-input-wrapper {
-  position: relative;
-  width: 100%;
-}
-
-.filter-input-wrapper input {
-  padding-left: 2.4rem;
-}
-
-.filter-input-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-light);
-  pointer-events: none;
-}
-
-@media (max-width: 1024px) {
-  .dashboard-filters-row {
-    grid-template-columns: 1fr 1fr;
-    row-gap: 1rem;
-  }
-  .dashboard-filter-group:first-child {
-    grid-column: 1 / -1;
-  }
-}
-
-@media (max-width: 640px) {
-  .dashboard-filters-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* --- 6. MODAL STYLES --- */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(15, 23, 42, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: var(--white);
-  border-radius: 16px;
-  padding: 1.75rem 1.75rem 1.5rem;
-  max-width: 520px;
-  width: 92%;
-  max-height: 80vh;
-  overflow-y: auto;
-  position: relative;
-  animation: scaleIn 0.2s ease-out;
-  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.35);
-}
-
-.modal-close {
-  position: absolute;
-  top: 0.9rem;
-  right: 0.9rem;
-  background: transparent;
-  border: none;
+/* 3. Webkit Fix: Ensure the calendar icon stays dark/visible */
+::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-light);
 }
-
-.modal-close:hover {
-  background: #f1f5f9;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.modal-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal-icon.confirm {
-  background: #fef3c7;
-  color: #c2410c;
-}
-
-.modal-icon.success {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.modal-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-dark);
-}
-
-.modal-body {
-  margin-bottom: 1.25rem;
-}
-
-.modal-content-view {
-  display: grid;
-  grid-template-columns: 1fr;
-  row-gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--text-dark);
-}
-
-.modal-text {
-  font-size: 0.9rem;
-  color: var(--text-dark);
-}
-
-.modal-text.success {
-  color: var(--success);
-  font-weight: 500;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
+input[type="date"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
 }
