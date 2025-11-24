@@ -47,9 +47,25 @@ body { background-color: var(--bg-color); color: var(--text-dark); }
 .btn-outline:hover { background: #f8fafc; border-color: var(--primary-color); color: var(--primary-color); }
 
 .badge { padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; }
-.badge-green { background: #dcfce7; color: #15803d; }
-.badge-blue { background: #dbeafe; color: #1e40af; }
-.badge-completed { background: #f1f5f9; color: #64748b; }
+
+
+
+.badge-green { 
+  background: #dcfce7; 
+  color: #15803d; 
+}
+
+
+.badge-blue { 
+  background: #ffedd5; /* Light Orange */
+  color: #c2410c;      /* Dark Orange */
+}
+
+
+.badge-completed { 
+  background: #dbeafe; /* Light Blue */
+  color: #1e40af;      /* Dark Blue */
+}
 
 .icon-btn { padding: 6px; border-radius: 6px; background: transparent; border: none; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; color: var(--text-light); }
 .icon-btn:hover { background-color: #f1f5f9; color: var(--primary-color); }

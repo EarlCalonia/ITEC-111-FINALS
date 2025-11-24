@@ -1,64 +1,149 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../styles/Doctors.css';
 import { Plus, Edit2, Trash2, X, Search, Phone, Mail, Clock, ShieldAlert, CalendarPlus } from 'lucide-react';
 
-const INITIAL_DOCTORS = [
-  { id: 1, firstName: 'James', lastName: 'Johnson', email: 'j.johnson@calonia.com', phone: '555-0101', role: 'General Practitioner', scheduleStart: '09:00', scheduleEnd: '17:00', status: 'Active', leaves: [] },
-  { id: 2, firstName: 'Sarah', lastName: 'Davis', email: 's.davis@calonia.com', phone: '555-0102', role: 'Pediatrician', scheduleStart: '08:00', scheduleEnd: '16:00', status: 'Active', leaves: [{ date: '2025-11-20', reason: 'Personal Leave' }] },
-  { id: 3, firstName: 'Emily', lastName: 'Miller', email: 'e.miller@calonia.com', phone: '555-0103', role: 'Cardiologist', scheduleStart: '10:00', scheduleEnd: '18:00', status: 'Active', leaves: [] },
-];
-
 export default function Doctors() {
-  const [doctors, setDoctors] = useState(INITIAL_DOCTORS);
+  const [doctors, setDoctors] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Modal States
   const [isDoctorModalOpen, setIsDoctorModalOpen] = useState(false);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState(null);
+  
+  // ID for blocking time
   const [blockingDoctorId, setBlockingDoctorId] = useState('');
+  
   const [doctorToDelete, setDoctorToDelete] = useState(null);
   const [errors, setErrors] = useState({});
 
+  // Forms
   const [doctorForm, setDoctorForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: '', scheduleStart: '09:00', scheduleEnd: '17:00' });
-  const [blockForm, setBlockForm] = useState({ reason: '', date: '', notes: '' }); // Default reason empty
+  const [blockForm, setBlockForm] = useState({ reason: '', date: '', notes: '' });
 
-  const handleOpenAdd = () => { setEditingDoctor(null); setDoctorForm({ firstName: '', lastName: '', email: '', phone: '', role: '', scheduleStart: '09:00', scheduleEnd: '17:00' }); setErrors({}); setIsDoctorModalOpen(true); };
-  const handleOpenEdit = (doc) => { setEditingDoctor(doc); setDoctorForm({ ...doc }); setErrors({}); setIsDoctorModalOpen(true); };
+  // 1. FETCH DATA
+  const fetchDoctors = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/doctors');
+      const data = await res.json();
+      setDoctors(data);
+    } catch (err) {
+      console.error("Error fetching doctors:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDoctors();
+  }, []);
+
+  // Handlers
+  const handleOpenAdd = () => { 
+    setEditingDoctor(null); 
+    setDoctorForm({ firstName: '', lastName: '', email: '', phone: '', role: '', scheduleStart: '09:00', scheduleEnd: '17:00' }); 
+    setErrors({}); 
+    setIsDoctorModalOpen(true); 
+  };
+
+  const handleOpenEdit = (doc) => { 
+    setEditingDoctor(doc); 
+    setDoctorForm({ ...doc }); 
+    setErrors({}); 
+    setIsDoctorModalOpen(true); 
+  };
+
   const handleDeleteClick = (doc) => { setDoctorToDelete(doc); };
-  const confirmDelete = () => { if (doctorToDelete) { setDoctors(doctors.filter(d => d.id !== doctorToDelete.id)); setDoctorToDelete(null); } };
 
-  const handleSaveDoctor = (e) => {
+  // 2. SAVE DOCTOR (Create or Update)
+  const handleSaveDoctor = async (e) => {
     e.preventDefault();
     const newErrors = {};
     if (!doctorForm.firstName) newErrors.firstName = "First Name is required";
     if (!doctorForm.lastName) newErrors.lastName = "Last Name is required";
     if (!doctorForm.email) newErrors.email = "Email is required";
-    if (!doctorForm.role) newErrors.role = "Specialization is required";
 
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
-    if (editingDoctor) { setDoctors(doctors.map(d => d.id === editingDoctor.id ? { ...d, ...doctorForm } : d)); } 
-    else { const newId = Math.max(...doctors.map(d => d.id), 0) + 1; setDoctors([...doctors, { id: newId, status: 'Active', leaves: [], ...doctorForm }]); }
-    setIsDoctorModalOpen(false);
+    try {
+        if (editingDoctor) {
+            // Update
+            await fetch(`http://localhost:5000/api/doctors/${editingDoctor.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(doctorForm)
+            });
+        } else {
+            // Create
+            await fetch('http://localhost:5000/api/doctors', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(doctorForm)
+            });
+        }
+        fetchDoctors();
+        setIsDoctorModalOpen(false);
+    } catch (err) {
+        console.error("Error saving doctor:", err);
+    }
   };
 
-  const handleOpenBlock = (specificId = '') => { setBlockingDoctorId(specificId); setBlockForm({ reason: '', date: '', notes: '' }); setErrors({}); setIsBlockModalOpen(true); };
+  // 3. BLOCK TIME (Add Leave)
+  const handleOpenBlock = (specificId = '') => { 
+    setBlockingDoctorId(specificId ? specificId.toString() : ''); 
+    setBlockForm({ reason: '', date: '', notes: '' }); 
+    setErrors({}); 
+    setIsBlockModalOpen(true); 
+  };
   
-  const handleSaveBlock = (e) => {
+  const handleSaveBlock = async (e) => {
     e.preventDefault();
     const newErrors = {};
     if (!blockingDoctorId) newErrors.doctor = "Please select a doctor";
-    if (!blockForm.reason) newErrors.reason = "Please select a reason"; // Validation for reason
+    if (!blockForm.reason) newErrors.reason = "Please select a reason";
     if (!blockForm.date) newErrors.date = "Date is required";
 
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
-    setDoctors(doctors.map(d => { if (d.id === parseInt(blockingDoctorId)) { return { ...d, leaves: [...d.leaves, { date: blockForm.date, reason: blockForm.reason }] }; } return d; }));
-    setIsBlockModalOpen(false);
+    try {
+        await fetch(`http://localhost:5000/api/doctors/${blockingDoctorId}/leaves`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(blockForm)
+        });
+        fetchDoctors();
+        setIsBlockModalOpen(false);
+    } catch (err) {
+        console.error("Error adding leave:", err);
+    }
   };
 
-  const handleRemoveLeave = (docId, leaveIndex) => { setDoctors(doctors.map(d => { if (d.id === docId) { const newLeaves = [...d.leaves]; newLeaves.splice(leaveIndex, 1); return { ...d, leaves: newLeaves }; } return d; })); };
-  const filteredDoctors = doctors.filter(d => `${d.firstName} ${d.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || d.role.toLowerCase().includes(searchTerm.toLowerCase()));
+  // 4. REMOVE LEAVE
+  const handleRemoveLeave = async (leaveId) => {
+    if (!window.confirm("Remove this leave entry?")) return;
+    try {
+        await fetch(`http://localhost:5000/api/doctors/leaves/${leaveId}`, { method: 'DELETE' });
+        fetchDoctors();
+    } catch (err) {
+        console.error("Error deleting leave:", err);
+    }
+  };
+
+  // 5. DELETE DOCTOR
+  const confirmDelete = async () => {
+    if (doctorToDelete) {
+        try {
+            await fetch(`http://localhost:5000/api/doctors/${doctorToDelete.id}`, { method: 'DELETE' });
+            fetchDoctors();
+            setDoctorToDelete(null);
+        } catch (err) {
+            console.error("Error deleting doctor:", err);
+        }
+    }
+  };
+
+  const filteredDoctors = doctors.filter(d => 
+    `${d.firstName} ${d.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    d.role.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="animate-fade-in">
@@ -76,11 +161,11 @@ export default function Doctors() {
       <div className="doctors-grid">
         {filteredDoctors.map((doc) => (
           <div key={doc.id} className="doctor-card">
-            <div className="doc-header"><div className="doc-avatar">{doc.firstName[0]}{doc.lastName[0]}</div><div className="doc-info"><h3>Dr. {doc.firstName} {doc.lastName}</h3><span className="doc-specialty">{doc.role}</span></div><span className={`status-badge ${doc.leaves.length > 0 ? 'status-leave' : 'status-active'}`}>{doc.leaves.length > 0 ? 'On Leave' : 'Active'}</span></div>
+            <div className="doc-header"><div className="doc-avatar">{doc.firstName[0]}{doc.lastName[0]}</div><div className="doc-info"><h3>Dr. {doc.firstName} {doc.lastName}</h3><span className="doc-specialty">{doc.role}</span></div><span className={`status-badge ${doc.leaves && doc.leaves.length > 0 ? 'status-leave' : 'status-active'}`}>{doc.leaves && doc.leaves.length > 0 ? 'On Leave' : 'Active'}</span></div>
             <div className="doc-body">
               <div className="info-row"><Mail size={14} className="info-icon"/> {doc.email}</div><div className="info-row"><Phone size={14} className="info-icon"/> {doc.phone}</div>
-              <div className="schedule-mini"><div className="schedule-title">Weekly Schedule</div><div className="info-row"><Clock size={14} className="info-icon"/> <span className="schedule-time">Mon - Fri: {doc.scheduleStart} - {doc.scheduleEnd}</span></div></div>
-              {doc.leaves.length > 0 && ( <div><div className="schedule-title" style={{marginTop: '0.5rem'}}>Upcoming Leaves</div><div className="leaves-list">{doc.leaves.map((leave, idx) => ( <div key={idx} className="leave-tag"><span>{new Date(leave.date).toLocaleDateString()} - {leave.reason}</span><button onClick={() => handleRemoveLeave(doc.id, idx)} style={{border:'none', background:'none', cursor:'pointer', color:'#c2410c'}}><X size={12}/></button></div> ))}</div></div> )}
+              <div className="schedule-mini"><div className="schedule-title">Weekly Schedule</div><div className="info-row"><Clock size={14} className="info-icon"/> <span className="schedule-time">Mon - Fri: {doc.scheduleStart?.slice(0,5)} - {doc.scheduleEnd?.slice(0,5)}</span></div></div>
+              {doc.leaves && doc.leaves.length > 0 && ( <div><div className="schedule-title" style={{marginTop: '0.5rem'}}>Upcoming Leaves</div><div className="leaves-list">{doc.leaves.map((leave, idx) => ( <div key={idx} className="leave-tag"><span>{new Date(leave.date).toLocaleDateString()} - {leave.reason}</span><button onClick={() => handleRemoveLeave(leave.id)} style={{border:'none', background:'none', cursor:'pointer', color:'#c2410c'}}><X size={12}/></button></div> ))}</div></div> )}
             </div>
             <div className="doc-footer"><button className="icon-btn" title="Add Leave" onClick={() => handleOpenBlock(doc.id)}><CalendarPlus size={18} /></button><div className="footer-actions"><button className="icon-btn" title="Edit" onClick={() => handleOpenEdit(doc)}><Edit2 size={16}/></button><button className="icon-btn delete" title="Delete" onClick={() => handleDeleteClick(doc)}><Trash2 size={16}/></button></div></div>
           </div>
@@ -95,7 +180,6 @@ export default function Doctors() {
               <div className="modal-body">
                 <div className="form-grid">
                   <div className="form-row-2">
-                    {/* ADDED PLACEHOLDERS */}
                     <div className="form-group"><label className="form-label">First Name</label><input className="form-control" placeholder="e.g. John" style={{ borderColor: errors.firstName ? 'var(--danger)' : 'var(--border)' }} value={doctorForm.firstName} onChange={e => { setDoctorForm({...doctorForm, firstName: e.target.value}); setErrors({...errors, firstName: null}); }}/>{errors.firstName && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.firstName}</span>}</div>
                     <div className="form-group"><label className="form-label">Last Name</label><input className="form-control" placeholder="e.g. Doe" style={{ borderColor: errors.lastName ? 'var(--danger)' : 'var(--border)' }} value={doctorForm.lastName} onChange={e => { setDoctorForm({...doctorForm, lastName: e.target.value}); setErrors({...errors, lastName: null}); }}/>{errors.lastName && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.lastName}</span>}</div>
                   </div>
@@ -120,13 +204,12 @@ export default function Doctors() {
                 <div className="form-grid">
                   <div className="form-group">
                     <label className="form-label">Select Doctor</label>
-                    {/* ADDED REQUIRED AND EMPTY OPTION */}
                     <select 
                       className="form-control" 
                       style={{ borderColor: errors.doctor ? 'var(--danger)' : 'var(--border)' }}
                       value={blockingDoctorId} 
                       onChange={e => { setBlockingDoctorId(e.target.value); setErrors({...errors, doctor: null}); }}
-                      disabled={!!blockingDoctorId && filteredDoctors.find(d => d.id === parseInt(blockingDoctorId))} 
+                      disabled={!!blockingDoctorId && filteredDoctors.some(d => d.id === parseInt(blockingDoctorId))} 
                       required
                     > 
                       <option value="">-- Choose Doctor --</option> {doctors.map(d => ( <option key={d.id} value={d.id}>Dr. {d.firstName} {d.lastName}</option> ))} 
@@ -136,7 +219,7 @@ export default function Doctors() {
                   <div className="form-group">
                     <label className="form-label">Reason</label>
                     <select className="form-control" required value={blockForm.reason} onChange={e => setBlockForm({...blockForm, reason: e.target.value})}>
-                      <option value="">Select Reason...</option> {/* Placeholder */}
+                      <option value="">Select Reason...</option>
                       <option>Personal Leave</option><option>Emergency</option><option>Holiday</option><option>Conference</option>
                     </select>
                     {errors.reason && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>Please select a reason</span>}

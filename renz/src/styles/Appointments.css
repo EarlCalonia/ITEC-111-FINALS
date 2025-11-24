@@ -1,0 +1,124 @@
+/* src/styles/Appointments.css */
+
+/* --- 1. SPECIALIZED MODAL LAYOUT --- */
+/* This ensures the modal doesn't get too tall and handles scrolling internally */
+.booking-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh; /* Leave some space at top/bottom of screen */
+  overflow: hidden; /* Prevent the whole modal from scrolling */
+}
+
+.booking-modal-body {
+  flex: 1; /* Takes up all available remaining space */
+  overflow-y: auto; /* Scroll ONLY the form part */
+  padding-right: 8px; /* Avoid scrollbar covering content */
+  padding-bottom: 1rem;
+}
+
+/* Custom Scrollbar for the form */
+.booking-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+.booking-modal-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+.booking-modal-body::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 10px;
+}
+
+/* --- 2. TIME SLOT GRID --- */
+.time-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 cols looks neater than 4 */
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.time-slot-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background-color: white;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 50px;
+  position: relative;
+}
+
+.time-slot-btn:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  background-color: #eff6ff;
+}
+
+.time-slot-btn.selected {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  font-weight: 600;
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.25);
+}
+
+.time-slot-btn:disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  border-color: transparent;
+  cursor: not-allowed;
+}
+
+.booked-label {
+  font-size: 0.6rem;
+  color: #ef4444;
+  font-weight: 700;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* --- 3. PATIENT DROPDOWN --- */
+.patient-select-wrapper {
+  position: relative;
+}
+
+.patient-dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 50; /* Ensure it floats above other fields */
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+}
+
+.patient-dropdown-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-dark);
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.1s;
+}
+
+.patient-dropdown-item:hover {
+  background-color: #f8fafc;
+  color: var(--primary-color);
+}
+
+.patient-dropdown-empty {
+  padding: 12px;
+  font-size: 0.85rem;
+  color: var(--text-light);
+  font-style: italic;
+  text-align: center;
+}
