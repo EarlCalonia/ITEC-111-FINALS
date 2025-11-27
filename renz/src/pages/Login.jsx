@@ -35,10 +35,10 @@ export default function Login() {
 
         <div className="brand-logo">CALONIA</div>
         <p className="brand-subtitle">
-          Centralized Appointment & Logistics Operations Network Interface Application
+          Clinic Appointment & Live Operations Network Interface Assistant
         </p>
         <div style={{marginTop: '2rem', opacity: 0.7, fontSize: '0.9rem'}}>
-          &copy; 2025 Clinic Administration System
+          &copy; 2025 Clinic Appointment System
         </div>
       </div>
 

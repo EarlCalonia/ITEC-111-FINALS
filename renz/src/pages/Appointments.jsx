@@ -4,7 +4,7 @@ import { Eye, Calendar as CalendarIcon, X, Clock, Mail, FileText, Plus, Search, 
 import '../styles/Appointments.css';
 
 // Constants
-const TIME_SLOTS = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM'];
+const TIME_SLOTS = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM'];
 
 const getTodayString = () => {
   const today = new Date();
@@ -88,28 +88,47 @@ export default function Appointments() {
     return slotDate < now;
   };
 
-  // --- NEW: ROBUST LEAVE CHECKER (FIXED TIMEZONE ISSUE) ---
+  // --- CHECK LEAVE STATUS ---
   const getDoctorLeaveStatus = (selectedDate, doctorId) => {
     if (!selectedDate || !doctorId) return null;
-    
     const doctor = doctorsList.find(d => d.id === parseInt(doctorId));
     if (!doctor || !doctor.leaves) return null;
-
     const leave = doctor.leaves.find(l => {
-        // Convert DB date to Date object
         const dbDate = new Date(l.date);
-        
-        // Format to YYYY-MM-DD using Local Time components
-        // This avoids the ISO string conversion shift that was causing the error
         const year = dbDate.getFullYear();
         const month = String(dbDate.getMonth() + 1).padStart(2, '0');
         const day = String(dbDate.getDate()).padStart(2, '0');
         const formattedDbDate = `${year}-${month}-${day}`;
-        
         return formattedDbDate === selectedDate;
     });
-
     return leave ? leave.reason : null; 
+  };
+
+  // --- NEW: CHECK IF SLOT IS WITHIN DOCTOR'S SHIFT ---
+  const isTimeWithinShift = (slotTime, doctorId) => {
+    if (!doctorId) return true; // Default to open if no doctor selected yet
+    
+    const doctor = doctorsList.find(d => d.id === parseInt(doctorId));
+    if (!doctor || !doctor.scheduleStart || !doctor.scheduleEnd) return true;
+
+    // Convert Slot Time (e.g. "02:30 PM") to minutes from midnight
+    const [timePart, modifier] = slotTime.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (modifier === 'PM' && hours !== 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    const slotMinutes = hours * 60 + minutes;
+
+    // Convert Shift Start (e.g. "13:00:00") to minutes
+    const [startH, startM] = doctor.scheduleStart.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+
+    // Convert Shift End to minutes
+    const [endH, endM] = doctor.scheduleEnd.split(':').map(Number);
+    const endMinutes = endH * 60 + endM;
+
+    // Check if slot is within range
+    // We use >= start and < end so they can't book exactly at the closing minute
+    return slotMinutes >= startMinutes && slotMinutes < endMinutes;
   };
 
   const isSlotBooked = (slotTime) => {
@@ -177,7 +196,6 @@ export default function Appointments() {
     if (!formData.doctor_id) newErrors.doc = "Please select a doctor";
     if (!formData.time) newErrors.time = "Please select a time slot";
 
-    // Double check leave status on save
     const leaveReason = getDoctorLeaveStatus(formData.date, formData.doctor_id);
     if (leaveReason) newErrors.time = `Doctor is unavailable: ${leaveReason}`;
 
@@ -330,11 +348,15 @@ export default function Appointments() {
                         {TIME_SLOTS.map(time => { 
                           const booked = isSlotBooked(time); 
                           const isPast = isTimeSlotPast(time, formData.date);
-                          // --- USE THE NEW ROBUST CHECKER ---
                           const leaveReason = getDoctorLeaveStatus(formData.date, formData.doctor_id);
                           
+                          // --- NEW: CHECK IF TIME IS IN DOCTOR'S SHIFT ---
+                          const isShiftValid = isTimeWithinShift(time, formData.doctor_id);
+
                           const isSelected = formData.time === time; 
-                          const isDisabled = booked || isPast || !!leaveReason || !formData.doctor_id || !formData.date;
+                          
+                          // Disabled if: Booked OR Past OR On Leave OR No Doctor Selected OR Outside Shift
+                          const isDisabled = booked || isPast || !!leaveReason || !formData.doctor_id || !formData.date || !isShiftValid;
 
                           return ( 
                             <button 
@@ -349,7 +371,9 @@ export default function Appointments() {
                               {booked && ( <span className="booked-label">Booked</span> )} 
                               {isPast && !booked && ( <span className="booked-label" style={{color:'#94a3b8'}}>Passed</span> )}
                               
-                              {/* Show reason if doctor is on leave */}
+                              {/* Label for Out of Shift */}
+                              {!isShiftValid && !leaveReason && ( <span className="booked-label" style={{color:'#94a3b8'}}>Closed</span> )}
+
                               {leaveReason && !isPast && !booked && (
                                 <span className="booked-label" style={{color: 'var(--warning)'}}>{leaveReason}</span>
                               )}
@@ -358,7 +382,7 @@ export default function Appointments() {
                         })}
                       </div>
                       
-                      {/* Helper text below buttons */}
+                      {/* Helper text */}
                       {getDoctorLeaveStatus(formData.date, formData.doctor_id) ? (
                         <div style={{marginTop:'8px', color: 'var(--warning)', fontSize: '0.8rem', display:'flex', alignItems:'center', gap:'4px'}}>
                             <AlertCircle size={14}/> Doctor is on leave ({getDoctorLeaveStatus(formData.date, formData.doctor_id)})
