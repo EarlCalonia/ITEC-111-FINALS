@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Eye, Calendar as CalendarIcon, X, Clock, Mail, FileText, Plus, Search, ChevronDown } from 'lucide-react';
+import { Eye, Calendar as CalendarIcon, X, Clock, Mail, FileText, Plus, Search, ChevronDown, AlertCircle } from 'lucide-react';
 import '../styles/Appointments.css';
 
 // Constants
@@ -72,33 +72,44 @@ export default function Appointments() {
 
   const filteredPatientsList = patientsList.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()));
 
-  // --- NEW: CHECK IF SLOT IS IN THE PAST ---
+  // --- CHECK IF SLOT IS IN THE PAST ---
   const isTimeSlotPast = (slotTime, selectedDate) => {
     if (!selectedDate) return false;
-
     const todayStr = getTodayString();
-    
-    // 1. If date is in the past, ALL slots are past
     if (selectedDate < todayStr) return true;
-
-    // 2. If date is in the future, NO slots are past
     if (selectedDate > todayStr) return false;
-
-    // 3. If date is TODAY, check the specific time
     const now = new Date();
-    
-    // Parse slot time (e.g. "02:30 PM")
     const [timePart, modifier] = slotTime.split(' ');
     let [hours, minutes] = timePart.split(':').map(Number);
-
     if (modifier === 'PM' && hours !== 12) hours += 12;
     if (modifier === 'AM' && hours === 12) hours = 0;
-
     const slotDate = new Date();
     slotDate.setHours(hours, minutes, 0, 0);
-
-    // Return true if slot is earlier than right now
     return slotDate < now;
+  };
+
+  // --- NEW: ROBUST LEAVE CHECKER (FIXED TIMEZONE ISSUE) ---
+  const getDoctorLeaveStatus = (selectedDate, doctorId) => {
+    if (!selectedDate || !doctorId) return null;
+    
+    const doctor = doctorsList.find(d => d.id === parseInt(doctorId));
+    if (!doctor || !doctor.leaves) return null;
+
+    const leave = doctor.leaves.find(l => {
+        // Convert DB date to Date object
+        const dbDate = new Date(l.date);
+        
+        // Format to YYYY-MM-DD using Local Time components
+        // This avoids the ISO string conversion shift that was causing the error
+        const year = dbDate.getFullYear();
+        const month = String(dbDate.getMonth() + 1).padStart(2, '0');
+        const day = String(dbDate.getDate()).padStart(2, '0');
+        const formattedDbDate = `${year}-${month}-${day}`;
+        
+        return formattedDbDate === selectedDate;
+    });
+
+    return leave ? leave.reason : null; 
   };
 
   const isSlotBooked = (slotTime) => {
@@ -134,7 +145,6 @@ export default function Appointments() {
   
   const handleReschedule = (apt) => {
     if (isEditLocked(apt.status)) return;
-
     setSelectedApt(apt);
     setPatientSearch(apt.patient); 
     setFormData({ 
@@ -166,6 +176,10 @@ export default function Appointments() {
     if (!formData.patient_id) newErrors.patient = "Please select a patient from the list";
     if (!formData.doctor_id) newErrors.doc = "Please select a doctor";
     if (!formData.time) newErrors.time = "Please select a time slot";
+
+    // Double check leave status on save
+    const leaveReason = getDoctorLeaveStatus(formData.date, formData.doctor_id);
+    if (leaveReason) newErrors.time = `Doctor is unavailable: ${leaveReason}`;
 
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
@@ -307,7 +321,6 @@ export default function Appointments() {
 
                     <div className="form-group">
                       <label className="form-label">Date</label>
-                      {/* DATE PICKER: Updates state so time check re-runs */}
                       <input type="date" className="form-control" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} min={getTodayString()} />
                     </div>
 
@@ -316,12 +329,12 @@ export default function Appointments() {
                       <div className="time-slot-grid">
                         {TIME_SLOTS.map(time => { 
                           const booked = isSlotBooked(time); 
-                          
-                          // --- NEW CHECK: IS TIME PAST? ---
                           const isPast = isTimeSlotPast(time, formData.date);
+                          // --- USE THE NEW ROBUST CHECKER ---
+                          const leaveReason = getDoctorLeaveStatus(formData.date, formData.doctor_id);
                           
                           const isSelected = formData.time === time; 
-                          const isDisabled = booked || isPast || !formData.doctor_id || !formData.date;
+                          const isDisabled = booked || isPast || !!leaveReason || !formData.doctor_id || !formData.date;
 
                           return ( 
                             <button 
@@ -335,11 +348,26 @@ export default function Appointments() {
                               <span style={{ fontSize: '0.85rem' }}>{time}</span> 
                               {booked && ( <span className="booked-label">Booked</span> )} 
                               {isPast && !booked && ( <span className="booked-label" style={{color:'#94a3b8'}}>Passed</span> )}
+                              
+                              {/* Show reason if doctor is on leave */}
+                              {leaveReason && !isPast && !booked && (
+                                <span className="booked-label" style={{color: 'var(--warning)'}}>{leaveReason}</span>
+                              )}
                             </button> 
                           ); 
                         })}
                       </div>
-                      {!formData.doctor_id ? <span style={{fontSize:'0.75rem', color:'#94a3b8', marginTop:'4px'}}>* Select a doctor and date to see availability</span> : errors.time ? <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.time}</span> : null}
+                      
+                      {/* Helper text below buttons */}
+                      {getDoctorLeaveStatus(formData.date, formData.doctor_id) ? (
+                        <div style={{marginTop:'8px', color: 'var(--warning)', fontSize: '0.8rem', display:'flex', alignItems:'center', gap:'4px'}}>
+                            <AlertCircle size={14}/> Doctor is on leave ({getDoctorLeaveStatus(formData.date, formData.doctor_id)})
+                        </div>
+                      ) : !formData.doctor_id ? (
+                        <span style={{fontSize:'0.75rem', color:'#94a3b8', marginTop:'4px'}}>* Select a doctor and date to see availability</span>
+                      ) : errors.time && (
+                        <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.time}</span>
+                      )}
                     </div>
                     
                     <div className="form-row-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

@@ -13,13 +13,16 @@ export default function Doctors() {
   
   // ID for blocking time
   const [blockingDoctorId, setBlockingDoctorId] = useState('');
+  const [isDoctorFixed, setIsDoctorFixed] = useState(false);
   
   const [doctorToDelete, setDoctorToDelete] = useState(null);
   const [errors, setErrors] = useState({});
 
   // Forms
   const [doctorForm, setDoctorForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: '', scheduleStart: '09:00', scheduleEnd: '17:00' });
-  const [blockForm, setBlockForm] = useState({ reason: '', date: '', notes: '' });
+  
+  // --- UPDATED BLOCK FORM: Added endDate ---
+  const [blockForm, setBlockForm] = useState({ reason: '', date: '', endDate: '', notes: '' });
 
   // 1. FETCH DATA
   const fetchDoctors = async () => {
@@ -53,7 +56,7 @@ export default function Doctors() {
 
   const handleDeleteClick = (doc) => { setDoctorToDelete(doc); };
 
-  // 2. SAVE DOCTOR (Create or Update)
+  // 2. SAVE DOCTOR
   const handleSaveDoctor = async (e) => {
     e.preventDefault();
     const newErrors = {};
@@ -65,14 +68,12 @@ export default function Doctors() {
 
     try {
         if (editingDoctor) {
-            // Update
             await fetch(`http://localhost:5000/api/doctors/${editingDoctor.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(doctorForm)
             });
         } else {
-            // Create
             await fetch('http://localhost:5000/api/doctors', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -89,7 +90,10 @@ export default function Doctors() {
   // 3. BLOCK TIME (Add Leave)
   const handleOpenBlock = (specificId = '') => { 
     setBlockingDoctorId(specificId ? specificId.toString() : ''); 
-    setBlockForm({ reason: '', date: '', notes: '' }); 
+    setIsDoctorFixed(!!specificId); 
+    
+    // Reset form including endDate
+    setBlockForm({ reason: '', date: '', endDate: '', notes: '' }); 
     setErrors({}); 
     setIsBlockModalOpen(true); 
   };
@@ -99,16 +103,34 @@ export default function Doctors() {
     const newErrors = {};
     if (!blockingDoctorId) newErrors.doctor = "Please select a doctor";
     if (!blockForm.reason) newErrors.reason = "Please select a reason";
-    if (!blockForm.date) newErrors.date = "Date is required";
+    if (!blockForm.date) newErrors.date = "Start Date is required";
 
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     try {
-        await fetch(`http://localhost:5000/api/doctors/${blockingDoctorId}/leaves`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(blockForm)
-        });
+        // --- NEW LOGIC: HANDLE DATE RANGE LOOP ---
+        const start = new Date(blockForm.date);
+        const end = blockForm.endDate ? new Date(blockForm.endDate) : new Date(blockForm.date);
+        
+        // Loop through every day from Start to End
+        for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+            // Format to YYYY-MM-DD using Local Time
+            const year = dt.getFullYear();
+            const month = String(dt.getMonth() + 1).padStart(2, '0');
+            const day = String(dt.getDate()).padStart(2, '0');
+            const formattedDate = `${year}-${month}-${day}`;
+
+            await fetch(`http://localhost:5000/api/doctors/${blockingDoctorId}/leaves`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reason: blockForm.reason,
+                    date: formattedDate,
+                    notes: blockForm.notes
+                })
+            });
+        }
+
         fetchDoctors();
         setIsBlockModalOpen(false);
     } catch (err) {
@@ -206,16 +228,25 @@ export default function Doctors() {
                     <label className="form-label">Select Doctor</label>
                     <select 
                       className="form-control" 
-                      style={{ borderColor: errors.doctor ? 'var(--danger)' : 'var(--border)' }}
+                      style={{ 
+                        color: blockingDoctorId ? 'var(--text-dark)' : '#94a3b8',
+                        borderColor: errors.doctor ? 'var(--danger)' : 'var(--border)' 
+                      }}
                       value={blockingDoctorId} 
                       onChange={e => { setBlockingDoctorId(e.target.value); setErrors({...errors, doctor: null}); }}
-                      disabled={!!blockingDoctorId && filteredDoctors.some(d => d.id === parseInt(blockingDoctorId))} 
+                      disabled={isDoctorFixed} 
                       required
                     > 
-                      <option value="">-- Choose Doctor --</option> {doctors.map(d => ( <option key={d.id} value={d.id}>Dr. {d.firstName} {d.lastName}</option> ))} 
+                      <option value="" disabled>-- Choose Doctor --</option> 
+                      {doctors.map(d => ( 
+                        <option key={d.id} value={d.id} style={{color: 'var(--text-dark)'}}>
+                          Dr. {d.firstName} {d.lastName}
+                        </option> 
+                      ))} 
                     </select>
                     {errors.doctor && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.doctor}</span>}
                   </div>
+                  
                   <div className="form-group">
                     <label className="form-label">Reason</label>
                     <select className="form-control" required value={blockForm.reason} onChange={e => setBlockForm({...blockForm, reason: e.target.value})}>
@@ -224,7 +255,20 @@ export default function Doctors() {
                     </select>
                     {errors.reason && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>Please select a reason</span>}
                   </div>
-                  <div className="form-group"><label className="form-label">Date</label><input required type="date" className="form-control" style={{ borderColor: errors.date ? 'var(--danger)' : 'var(--border)' }} value={blockForm.date} onChange={e => { setBlockForm({...blockForm, date: e.target.value}); setErrors({...errors, date: null}); }}/>{errors.date && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.date}</span>}</div>
+
+                  {/* --- UPDATED DATE INPUTS FOR RANGE --- */}
+                  <div className="form-row-2">
+                    <div className="form-group">
+                      <label className="form-label">Start Date</label>
+                      <input required type="date" className="form-control" style={{ borderColor: errors.date ? 'var(--danger)' : 'var(--border)' }} value={blockForm.date} onChange={e => { setBlockForm({...blockForm, date: e.target.value}); setErrors({...errors, date: null}); }}/>
+                      {errors.date && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.date}</span>}
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">End Date (Optional)</label>
+                      <input type="date" className="form-control" value={blockForm.endDate} onChange={e => setBlockForm({...blockForm, endDate: e.target.value})} placeholder="Same as start" min={blockForm.date} />
+                    </div>
+                  </div>
+
                   <div className="form-group"><label className="form-label">Notes (Optional)</label><textarea className="form-control" rows="3" placeholder="e.g. Out of town for a wedding..." value={blockForm.notes} onChange={e => setBlockForm({...blockForm, notes: e.target.value})}></textarea></div>
                 </div>
               </div>
