@@ -197,12 +197,13 @@ export default function Dashboard() {
                 <div>
                     <h5 className="chart-title">Appointments Last 7 Days</h5>
                     <div className="bar-chart">
-                        {summaryData.weeklyAppts.map((appt, index) => { 
+                        {summaryData.weeklyAppts.map((appt, index) => { // 1. Add 'index' here
                             const percentage = maxAppts > 0 ? (appt.count / maxAppts) * 100 : 0;
                             const isToday = index === summaryData.weeklyAppts.length - 1; 
 
                             return ( 
-                                <div key={appt.day} className="bar-wrapper">
+                                // 2. Change key={appt.day} to key={index}
+                                <div key={index} className="bar-wrapper">
                                     <div className={`animate-slide-up bar ${isToday ? 'today' : 'other'}`} style={{ height: `${percentage}%` }}>
                                         <div className="bar-tooltip">{appt.count}</div>
                                     </div>

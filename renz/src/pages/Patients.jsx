@@ -1,8 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import '../styles/Patients.css';
 import { Plus, Search, Eye, Edit2, Trash2, FileDown, ChevronLeft, ChevronRight, X, Phone, Mail, Calendar, Activity } from 'lucide-react';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Helper functions
 const formatDOB = (dob) => { if (!dob) return ''; return new Date(dob).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
@@ -143,7 +143,104 @@ export default function Patients() {
     } 
   };
 
-  const handleExportPDF = () => { const doc = new jsPDF(); doc.text('Patient Records Report', 14, 22); const tableColumn = ["ID", "Name", "Phone", "Email", "DOB", "Last Visit", "Status"]; const tableRows = patientsData.map(p => [p.id, p.name, p.phone, p.email, formatDOB(p.dob), p.lastVisit, p.status]); doc.autoTable({ startY: 35, head: [tableColumn], body: tableRows }); doc.save('patients_report.pdf'); };
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+
+    // --- 1. REPORT HEADER ---
+    // Company Name (Blue, Bold, Large)
+    doc.setFontSize(22);
+    doc.setTextColor(59, 130, 246); // var(--primary-color) #3b82f6
+    doc.setFont("helvetica", "bold");
+    doc.text("CALONIA", 14, 20);
+
+    // Subtitle / System Name
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.setFont("helvetica", "normal");
+    doc.text("Centralized Appointment & Logistics Operations", 14, 26);
+    
+    // Line separator
+    doc.setDrawColor(200); 
+    doc.line(14, 30, 196, 30); // Horizontal line
+
+    // Report Title & Date
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text("Patient Records Registry", 14, 42);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    doc.text(`Generated on: ${today}`, 14, 48);
+
+    // --- 2. TABLE DATA PREPARATION ---
+    const tableColumn = ["ID", "Name", "Phone", "Email", "DOB", "Last Visit", "Status"];
+    const tableRows = patientsData.map(p => [
+      p.id,
+      p.name,
+      p.phone,
+      p.email || '--',
+      formatDOB(p.dob),
+      p.lastVisit || 'New Patient',
+      p.status
+    ]);
+
+    // --- 3. GENERATE TABLE WITH STYLING ---
+    autoTable(doc, {
+      startY: 55,
+      head: [tableColumn],
+      body: tableRows,
+      theme: 'grid',
+      
+      // Header Style (Blue background)
+      headStyles: { 
+        fillColor: [59, 130, 246], 
+        textColor: 255, 
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      
+      // Body Style
+      bodyStyles: { 
+        textColor: 50,
+        fontSize: 9 
+      },
+      
+      // Alternate Row Colors
+      alternateRowStyles: { 
+        fillColor: [240, 249, 255] // Very light blue
+      },
+      
+      // Column Specific Styles (Optional alignment)
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 15 }, // ID
+        6: { halign: 'center', fontStyle: 'bold' } // Status
+      },
+
+      // --- 4. FOOTER (Page Numbers) ---
+      didDrawPage: function (data) {
+        // Footer text
+        const pageCount = doc.internal.getNumberOfPages();
+        const pageSize = doc.internal.pageSize;
+        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+        
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(
+          `Page ${data.pageNumber} of ${pageCount}`, 
+          data.settings.margin.left, 
+          pageHeight - 10
+        );
+        
+        // Right-aligned footer text
+        const footerText = "CALONIA Clinic System - Confidential";
+        const textWidth = doc.getTextWidth(footerText);
+        doc.text(footerText, pageSize.width - data.settings.margin.right - textWidth, pageHeight - 10);
+      }
+    });
+
+    doc.save('calonia_patients_report.pdf');
+  };
 
   return (
     <div className="patients-page animate-fade-in">
@@ -161,7 +258,7 @@ export default function Patients() {
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="table-container" style={{ border: 'none', borderRadius: 0 }}>
           <table>
-            <thead><tr>{[ { label: 'ID', key: 'id' }, { label: 'Patient Name', key: 'name' }, { label: 'Phone', key: 'phone' }, { label: 'Email', key: 'email' }, { label: 'Age / DOB', key: 'dob' }, { label: 'Last Visit', key: 'lastVisit' }, { label: 'Status', key: 'status' } ].map((col) => ( <th key={col.key} onClick={() => handleSort(col.key)} className="sortable"> {col.label} {sortConfig.key === col.key && <span className="sort-indicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>} </th> ))} <th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+            <thead><tr>{[ { label: 'ID', key: 'id' }, { label: 'Patient Name', key: 'name' }, { label: 'Phone', key: 'phone' }, { label: 'Email', key: 'email' }, { label: 'Age / DOB', key: 'dob' }, { label: 'Last Visit', key: 'lastVisit' }, { label: 'Status', key: 'status' } ].map((col) => ( <th key={col.key} onClick={() => handleSort(col.key)} className="sortable"> {col.label} {sortConfig.key === col.key && <span className="sort-indicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>} </th> ))}<th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
             <tbody>
               {paginatedPatients.length === 0 ? ( <tr><td colSpan="8" style={{textAlign: 'center', padding: '3rem', color: '#6b7280'}}>No patients found.</td></tr> ) : paginatedPatients.map((p) => (
                 <tr key={p.id}>

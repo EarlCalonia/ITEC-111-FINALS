@@ -72,6 +72,35 @@ export default function Appointments() {
 
   const filteredPatientsList = patientsList.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()));
 
+  // --- NEW: CHECK IF SLOT IS IN THE PAST ---
+  const isTimeSlotPast = (slotTime, selectedDate) => {
+    if (!selectedDate) return false;
+
+    const todayStr = getTodayString();
+    
+    // 1. If date is in the past, ALL slots are past
+    if (selectedDate < todayStr) return true;
+
+    // 2. If date is in the future, NO slots are past
+    if (selectedDate > todayStr) return false;
+
+    // 3. If date is TODAY, check the specific time
+    const now = new Date();
+    
+    // Parse slot time (e.g. "02:30 PM")
+    const [timePart, modifier] = slotTime.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+
+    if (modifier === 'PM' && hours !== 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+
+    const slotDate = new Date();
+    slotDate.setHours(hours, minutes, 0, 0);
+
+    // Return true if slot is earlier than right now
+    return slotDate < now;
+  };
+
   const isSlotBooked = (slotTime) => {
     if (!formData.doctor_id) return false;
     return appointments.some(apt => 
@@ -104,7 +133,6 @@ export default function Appointments() {
   const handleView = (apt) => { setSelectedApt(apt); setModalMode('view'); setIsModalOpen(true); };
   
   const handleReschedule = (apt) => {
-    // SECURITY CHECK: Prevent editing if locked
     if (isEditLocked(apt.status)) return;
 
     setSelectedApt(apt);
@@ -179,7 +207,6 @@ export default function Appointments() {
     } 
   };
 
-  // --- HELPER: CHECK IF LOCKED ---
   const isEditLocked = (status) => status === 'Completed' || status === 'Confirmed';
 
   return (
@@ -206,7 +233,6 @@ export default function Appointments() {
             <tbody>
               {filteredAppointments.length === 0 ? ( <tr><td colSpan="6" style={{textAlign:'center', padding:'2rem', color:'#6b7280'}}>No appointments found for {dateFilter || 'this filter'}.</td></tr> ) : filteredAppointments.map((apt) => (
                 <tr key={apt.id}>
-                  
                   <td><div style={{fontWeight: '700', color: 'var(--text-dark)', whiteSpace: 'nowrap'}}>{apt.time}</div><div style={{fontSize: '0.75rem', color: 'var(--text-light)', display: 'flex', alignItems: 'center', gap: '4px'}}><Clock size={12}/> {apt.duration}</div></td>
                   <td><div style={{fontWeight: '600', color: 'var(--primary-color)'}}>{apt.patient}</div><div style={{fontSize: '0.8rem', color: 'var(--text-light)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', whiteSpace: 'nowrap'}}><Mail size={12}/> {apt.email || 'N/A'}</div></td>
                   <td><div style={{fontWeight: '500', fontSize: '0.9rem'}}>{apt.type}</div><div style={{fontSize: '0.8rem', color: 'var(--text-light)', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px', lineHeight: '1.3'}}><FileText size={12} style={{marginTop:'2px', flexShrink: 0}}/> <span>{apt.notes}</span></div></td>
@@ -215,34 +241,8 @@ export default function Appointments() {
                   <td style={{textAlign: 'right', paddingRight: '1.5rem'}}>
                     <div style={{display: 'flex', gap: '8px', justifyContent: 'flex-end'}}>
                       <button className="icon-btn view" title="View Details" onClick={() => handleView(apt)}><Eye size={18}/></button>
-                      
-                      {/* --- UPDATED: EDIT BUTTON DISABLED IF LOCKED --- */}
-                      <button 
-                        className="icon-btn edit" 
-                        title={isEditLocked(apt.status) ? "Cannot edit locked appointment" : "Reschedule"} 
-                        onClick={() => handleReschedule(apt)}
-                        disabled={isEditLocked(apt.status)}
-                        style={{ 
-                            opacity: isEditLocked(apt.status) ? 0.3 : 1, 
-                            cursor: isEditLocked(apt.status) ? 'not-allowed' : 'pointer'
-                        }}
-                      >
-                        <CalendarIcon size={18}/>
-                      </button>
-
-                      {/* --- CANCEL BUTTON DISABLED IF COMPLETED --- */}
-                      <button 
-                        className="icon-btn delete" 
-                        title={apt.status === 'Completed' ? "Cannot cancel completed appointment" : "Cancel"} 
-                        onClick={() => handleCancelClick(apt)}
-                        disabled={apt.status === 'Completed'}
-                        style={{ 
-                            opacity: apt.status === 'Completed' ? 0.3 : 1, 
-                            cursor: apt.status === 'Completed' ? 'not-allowed' : 'pointer',
-                        }}
-                      >
-                        <X size={18}/>
-                      </button>
+                      <button className="icon-btn edit" title={isEditLocked(apt.status) ? "Cannot edit locked appointment" : "Reschedule"} onClick={() => handleReschedule(apt)} disabled={isEditLocked(apt.status)} style={{ opacity: isEditLocked(apt.status) ? 0.3 : 1, cursor: isEditLocked(apt.status) ? 'not-allowed' : 'pointer'}}><CalendarIcon size={18}/></button>
+                      <button className="icon-btn delete" title={apt.status === 'Completed' ? "Cannot cancel completed appointment" : "Cancel"} onClick={() => handleCancelClick(apt)} disabled={apt.status === 'Completed'} style={{ opacity: apt.status === 'Completed' ? 0.3 : 1, cursor: apt.status === 'Completed' ? 'not-allowed' : 'pointer',}}><X size={18}/></button>
                     </div>
                   </td>
                 </tr>
@@ -254,7 +254,6 @@ export default function Appointments() {
 
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          {/* APPLIED CLASS: booking-modal */}
           <div className="modal-content booking-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
             
             <div className="modal-header">
@@ -264,7 +263,6 @@ export default function Appointments() {
               <button onClick={() => setIsModalOpen(false)} className="modal-close"><X size={20} /></button>
             </div>
             
-            {/* VIEW MODE */}
             {modalMode === 'view' && selectedApt && (
               <>
                 <div className="booking-modal-body">
@@ -278,167 +276,75 @@ export default function Appointments() {
                     <div className="detail-group"><div className="detail-label">Status</div><span className={`badge ${selectedApt.status === 'Confirmed' ? 'badge-green' : selectedApt.status === 'Pending' ? 'badge-blue' : 'badge-completed'}`}>{selectedApt.status}</span></div>
                   </div>
                 </div>
-
-                {/* Footer with Actions */}
                 <div className="modal-footer">
                   <button className="btn btn-outline" onClick={() => setIsModalOpen(false)}>Close</button>
-                  
-                  {/* 1. CONFIRM BUTTON (Only visible if status is Pending) */}
-                  {selectedApt.status === 'Pending' && (
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)' }}
-                      onClick={async () => {
-                        try {
-                          await fetch(`http://localhost:5000/api/appointments/${selectedApt.id}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ 
-                                patient_id: selectedApt.patient_id, 
-                                doctor_id: selectedApt.doctor_id,
-                                date: selectedApt.date,
-                                time: selectedApt.time,
-                                type: selectedApt.type,
-                                notes: selectedApt.notes,
-                                status: 'Confirmed' 
-                              })
-                          });
-                          fetchAllData(); 
-                          setIsModalOpen(false); 
-                        } catch (err) {
-                          console.error("Error confirming:", err);
-                        }
-                      }}
-                    >
-                      Confirm Appointment
-                    </button>
-                  )}
-
-                  {/* 2. COMPLETE BUTTON (Only visible if status is Confirmed) */}
-                  {selectedApt.status === 'Confirmed' && (
-                    <button 
-                      className="btn btn-primary" 
-                      style={{ backgroundColor: 'var(--success)', borderColor: 'var(--success)' }}
-                      onClick={async () => {
-                        try {
-                          await fetch(`http://localhost:5000/api/appointments/${selectedApt.id}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ 
-                                patient_id: selectedApt.patient_id, 
-                                doctor_id: selectedApt.doctor_id,
-                                date: selectedApt.date,
-                                time: selectedApt.time,
-                                type: selectedApt.type,
-                                notes: selectedApt.notes,
-                                status: 'Completed' 
-                              })
-                          });
-                          fetchAllData(); 
-                          setIsModalOpen(false); 
-                        } catch (err) {
-                          console.error("Error completing:", err);
-                        }
-                      }}
-                    >
-                      Mark Completed
-                    </button>
-                  )}
-
-                  {/* 3. EDIT BUTTON (Hidden if Locked) */}
-                  {!isEditLocked(selectedApt.status) && (
-                    <button className="btn btn-primary" onClick={() => handleReschedule(selectedApt)}>Edit</button>
-                  )}
+                  {selectedApt.status === 'Pending' && ( <button className="btn btn-primary" style={{ backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)' }} onClick={async () => { try { await fetch(`http://localhost:5000/api/appointments/${selectedApt.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient_id: selectedApt.patient_id, doctor_id: selectedApt.doctor_id, date: selectedApt.date, time: selectedApt.time, type: selectedApt.type, notes: selectedApt.notes, status: 'Confirmed' }) }); fetchAllData(); setIsModalOpen(false); } catch (err) { console.error("Error confirming:", err); } }}>Confirm Appointment</button> )}
+                  {selectedApt.status === 'Confirmed' && ( <button className="btn btn-primary" style={{ backgroundColor: 'var(--success)', borderColor: 'var(--success)' }} onClick={async () => { try { await fetch(`http://localhost:5000/api/appointments/${selectedApt.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient_id: selectedApt.patient_id, doctor_id: selectedApt.doctor_id, date: selectedApt.date, time: selectedApt.time, type: selectedApt.type, notes: selectedApt.notes, status: 'Completed' }) }); fetchAllData(); setIsModalOpen(false); } catch (err) { console.error("Error completing:", err); } }}>Mark Completed</button> )}
+                  {!isEditLocked(selectedApt.status) && ( <button className="btn btn-primary" onClick={() => handleReschedule(selectedApt)}>Edit</button> )}
                 </div>
               </>
             )}
 
-            {/* CREATE / RESCHEDULE MODE */}
             {(modalMode === 'create' || modalMode === 'reschedule') && (
               <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                 <div className="booking-modal-body">
                   <div className="form-grid">
-                    
-                    {/* Patient Dropdown */}
                     <div className="form-group patient-select-wrapper">
                       <label className="form-label">Select Patient</label>
                       <div style={{position: 'relative'}}>
-                        <input 
-                          className="form-control" 
-                          style={{ borderColor: errors.patient ? 'var(--danger)' : 'var(--border)' }}
-                          value={patientSearch} 
-                          onChange={e => { setPatientSearch(e.target.value); setIsPatientDropdownOpen(true); }} 
-                          onFocus={() => setIsPatientDropdownOpen(true)} 
-                          onBlur={() => setTimeout(() => setIsPatientDropdownOpen(false), 200)} 
-                          placeholder="Search patient name..." 
-                          autoComplete="off" 
-                        />
+                        <input className="form-control" style={{ borderColor: errors.patient ? 'var(--danger)' : 'var(--border)' }} value={patientSearch} onChange={e => { setPatientSearch(e.target.value); setIsPatientDropdownOpen(true); }} onFocus={() => setIsPatientDropdownOpen(true)} onBlur={() => setTimeout(() => setIsPatientDropdownOpen(false), 200)} placeholder="Search patient name..." autoComplete="off" />
                         <ChevronDown size={16} style={{position:'absolute', right:'12px', top:'50%', transform:'translateY(-50%)', color:'var(--text-light)', pointerEvents:'none'}}/>
-                        {isPatientDropdownOpen && (
-                          <div className="patient-dropdown-list">
-                            {filteredPatientsList.length > 0 ? filteredPatientsList.map((patient) => (
-                              <div key={patient.id} className="patient-dropdown-item" onMouseDown={() => { setPatientSearch(patient.name); setFormData({...formData, patient_id: patient.id}); setIsPatientDropdownOpen(false); setErrors({...errors, patient: null}); }}>{patient.name}</div>
-                            )) : ( <div className="patient-dropdown-empty">No patients found.</div> )}
-                          </div>
-                        )}
+                        {isPatientDropdownOpen && ( <div className="patient-dropdown-list"> {filteredPatientsList.length > 0 ? filteredPatientsList.map((patient) => ( <div key={patient.id} className="patient-dropdown-item" onMouseDown={() => { setPatientSearch(patient.name); setFormData({...formData, patient_id: patient.id}); setIsPatientDropdownOpen(false); setErrors({...errors, patient: null}); }}>{patient.name}</div> )) : ( <div className="patient-dropdown-empty">No patients found.</div> )} </div> )}
                       </div>
                       {errors.patient && <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.patient}</span>}
                     </div>
 
-                    {/* Doctor Select */}
                     <div className="form-group">
                       <label className="form-label">Doctor</label>
-                      <select 
-                        className="form-control" 
-                        style={{ color: formData.doctor_id === "" ? '#94a3b8' : 'var(--text-dark)', borderColor: errors.doc ? 'var(--danger)' : 'var(--border)' }}
-                        value={formData.doctor_id} 
-                        onChange={e => { setFormData({...formData, doctor_id: e.target.value}); setErrors({...errors, doc: null}); }}
-                      >
-                        <option value="" disabled>Select a doctor...</option>
-                        {doctorsList.map(doc => ( <option key={doc.id} value={doc.id} style={{ color: 'var(--text-dark)' }}>Dr. {doc.firstName} {doc.lastName}</option> ))}
-                      </select>
+                      <select className="form-control" style={{ color: formData.doctor_id === "" ? '#94a3b8' : 'var(--text-dark)', borderColor: errors.doc ? 'var(--danger)' : 'var(--border)' }} value={formData.doctor_id} onChange={e => { setFormData({...formData, doctor_id: e.target.value}); setErrors({...errors, doc: null}); }}><option value="" disabled>Select a doctor...</option>{doctorsList.map(doc => ( <option key={doc.id} value={doc.id} style={{ color: 'var(--text-dark)' }}>Dr. {doc.firstName} {doc.lastName}</option> ))}</select>
                       {errors.doc && <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.doc}</span>}
                     </div>
 
-                    {/* Time Slot Grid */}
                     <div className="form-group">
-                      <label className="form-label">Select Time ({formData.date})</label>
+                      <label className="form-label">Date</label>
+                      {/* DATE PICKER: Updates state so time check re-runs */}
+                      <input type="date" className="form-control" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} min={getTodayString()} />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Select Time</label>
                       <div className="time-slot-grid">
                         {TIME_SLOTS.map(time => { 
                           const booked = isSlotBooked(time); 
+                          
+                          // --- NEW CHECK: IS TIME PAST? ---
+                          const isPast = isTimeSlotPast(time, formData.date);
+                          
                           const isSelected = formData.time === time; 
+                          const isDisabled = booked || isPast || !formData.doctor_id || !formData.date;
+
                           return ( 
                             <button 
                               type="button" 
                               key={time} 
-                              disabled={booked || !formData.doctor_id} 
+                              disabled={isDisabled} 
                               onClick={() => { setFormData({...formData, time}); setErrors({...errors, time: null}); }} 
                               className={`time-slot-btn ${isSelected ? 'selected' : ''}`}
+                              style={{ opacity: isDisabled ? 0.5 : 1 }}
                             > 
                               <span style={{ fontSize: '0.85rem' }}>{time}</span> 
                               {booked && ( <span className="booked-label">Booked</span> )} 
+                              {isPast && !booked && ( <span className="booked-label" style={{color:'#94a3b8'}}>Passed</span> )}
                             </button> 
                           ); 
                         })}
                       </div>
-                      {!formData.doctor_id ? <span style={{fontSize:'0.75rem', color:'#94a3b8', marginTop:'4px'}}>* Select a doctor to see availability</span> : errors.time ? <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.time}</span> : null}
+                      {!formData.doctor_id ? <span style={{fontSize:'0.75rem', color:'#94a3b8', marginTop:'4px'}}>* Select a doctor and date to see availability</span> : errors.time ? <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.time}</span> : null}
                     </div>
                     
-                    {/* Status & Type Row */}
                     <div className="form-row-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div className="form-group">
-                        <label className="form-label">Type of Visit</label>
-                        <input className="form-control" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} placeholder="e.g. General Checkup" />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Status</label>
-                        <select className="form-control" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
-                          <option value="Pending">Pending</option>
-                          <option value="Confirmed">Confirmed</option>
-                          <option value="Completed">Completed</option>
-                          <option value="Cancelled">Cancelled</option>
-                        </select>
-                      </div>
+                      <div className="form-group"><label className="form-label">Type of Visit</label><input className="form-control" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} placeholder="e.g. General Checkup" /></div>
+                      <div className="form-group"><label className="form-label">Status</label><select className="form-control" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}><option value="Pending">Pending</option><option value="Confirmed">Confirmed</option><option value="Completed">Completed</option><option value="Cancelled">Cancelled</option></select></div>
                     </div>
 
                     <div className="form-group"><label className="form-label">Notes</label><textarea className="form-control" rows="3" value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})}></textarea></div>

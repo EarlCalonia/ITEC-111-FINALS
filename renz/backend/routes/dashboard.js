@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db'); 
-const TODAY = new Date().toISOString().split('T')[0];
+
+// --- Helper Functions ---
 
 // Helper 1: Get counts for total patients/doctors
 const getCount = (table) => {
@@ -9,7 +10,7 @@ const getCount = (table) => {
         const sql = `SELECT COUNT(id) as count FROM ${table}`;
         db.query(sql, (err, results) => {
             if (err) return reject(err);
-            resolve(results[0].count);
+            resolve(results[0]?.count || 0);
         });
     });
 };
@@ -27,13 +28,13 @@ const getDailyAppointments = (date, status) => {
         
         db.query(sql, params, (err, results) => {
             if (err) return reject(err);
-            resolve(results[0].count);
+            resolve(results[0]?.count || 0);
         });
     });
 };
 
-// Helper 3: Get Today's detailed schedule (LIVE DATA)
-const getTodaySchedule = () => {
+// Helper 3: Get Today's detailed schedule (Accepts dynamic date)
+const getTodaySchedule = (date) => {
     return new Promise((resolve, reject) => {
         const sql = `
             SELECT 
@@ -46,25 +47,28 @@ const getTodaySchedule = () => {
             WHERE DATE(a.date) = ? AND a.status != 'Cancelled'
             ORDER BY a.time ASC
         `;
-        db.query(sql, [TODAY], (err, results) => {
+        db.query(sql, [date], (err, results) => {
             if (err) return reject(err);
+
+            // Handle case where results might be undefined
+            if (!results) return resolve([]);
 
             const schedule = results.map(row => ({
                 id: row.id,
                 time: row.time,
-                patient: row.patient,
+                patient: row.patient || 'Unknown',
                 type: row.type,
                 duration: row.duration || '30 min',
-                doctor: `Dr. ${row.doctorLastName}`,
+                doctor: row.doctorLastName ? `Dr. ${row.doctorLastName}` : 'Unassigned',
                 status: row.status,
-                isCurrent: false // Simple simulation: check if time is within current hour
+                isCurrent: false 
             }));
             resolve(schedule);
         });
     });
 };
 
-// Helper 4: Get simple list of doctors (for Doctor Status card)
+// Helper 4: Get simple list of doctors
 const getDoctorStatus = () => {
     return new Promise((resolve, reject) => {
         const sql = `
@@ -74,20 +78,20 @@ const getDoctorStatus = () => {
         `;
         db.query(sql, (err, results) => {
             if (err) return reject(err);
-            
-            // Map results to provide mock status/next appointment logic
+            if (!results) return resolve([]);
+
             const statusData = results.map(doc => ({
                 name: `Dr. ${doc.last_name}`,
-                status: doc.daily_count > 0 ? 'Busy' : 'Available', // Simple dynamic status
+                status: doc.daily_count > 0 ? 'Busy' : 'Available',
                 dailyCount: doc.daily_count,
-                next: '10:15 AM', // Mock next appointment time (requires advanced query)
+                next: '10:15 AM', 
             }));
             resolve(statusData);
         });
     });
 };
 
-// Helper 5: Get weekly appointment totals (LIVE DATA)
+// Helper 5: Get weekly appointment totals
 const getWeeklyApptData = () => {
     return new Promise((resolve, reject) => {
         const sql = `
@@ -101,11 +105,22 @@ const getWeeklyApptData = () => {
         `;
         db.query(sql, (err, results) => {
             if (err) return reject(err);
-            
-            const weeklyData = results.map(row => ({
-                day: row.day.toLocaleDateString('en-US', { weekday: 'short' }),
-                count: row.count
-            }));
+            if (!results) return resolve([]);
+
+            const weeklyData = results.map(row => {
+                // Safety check: ensure row.day is a valid date object before converting
+                let dayLabel = 'N/A';
+                if (row.day) {
+                    const d = new Date(row.day);
+                    if (!isNaN(d.getTime())) {
+                        dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+                    }
+                }
+                return {
+                    day: dayLabel,
+                    count: row.count
+                };
+            });
             resolve(weeklyData);
         });
     });
@@ -117,15 +132,24 @@ const getRecentActivity = () => {
         const sql = `SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 5`;
         db.query(sql, (err, results) => {
             if (err) return reject(err);
-            resolve(results);
+            resolve(results || []);
         });
     });
 };
 
+// --- Main Route ---
 
-// GET dashboard summary data
 router.get('/summary', async (req, res) => {
     try {
+        // 1. Robust Manual Date Calculation (YYYY-MM-DD) based on Local Time
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const dynamicToday = `${year}-${month}-${day}`;
+
+        console.log("Fetching dashboard for date:", dynamicToday); // Debug Log
+
         const [
             totalPatients, 
             todayAppts, 
@@ -134,22 +158,27 @@ router.get('/summary', async (req, res) => {
             todaySchedule, 
             doctorStatus, 
             weeklyAppts,
-            recentActivity // <--- Now included
+            recentActivity 
         ] = await Promise.all([
             getCount('patients'),
-            getDailyAppointments(TODAY, null),
-            getDailyAppointments(TODAY, 'Pending'),
+            getDailyAppointments(dynamicToday, null),
+            getDailyAppointments(dynamicToday, 'Pending'),
             new Promise((resolve, reject) => {
                 const sql = "SELECT DISTINCT date FROM appointments WHERE status != 'Cancelled'";
                 db.query(sql, (err, results) => {
                     if (err) return reject(err);
-                    resolve(results.map(r => r.date.toISOString().split('T')[0])); 
+                    // Safety map
+                    const dates = (results || []).map(r => {
+                        try { return r.date.toISOString().split('T')[0]; } 
+                        catch (e) { return null; }
+                    }).filter(d => d);
+                    resolve(dates); 
                 });
             }),
-            getTodaySchedule(), 
+            getTodaySchedule(dynamicToday), 
             getDoctorStatus(),
             getWeeklyApptData(),
-            getRecentActivity() // <--- Now called
+            getRecentActivity()
         ]);
 
         res.json({
@@ -160,15 +189,24 @@ router.get('/summary', async (req, res) => {
             scheduleData: todaySchedule, 
             doctorStatus: doctorStatus, 
             weeklyAppts: weeklyAppts, 
-            recentActivity: recentActivity, // <--- Sent to frontend
-            
-            // Alerts are now fully removed from backend (sent as empty array)
+            recentActivity: recentActivity, 
             alerts: [] 
         });
 
     } catch (error) {
         console.error('Dashboard summary error:', error);
-        res.status(500).json({ error: 'Failed to fetch dashboard summary.', detail: error.message });
+        // Return a basic valid structure even on error to prevent white screen
+        res.json({
+            totalPatients: 0,
+            todayAppts: 0,
+            pendingAppts: 0,
+            apptDates: [],
+            scheduleData: [], 
+            doctorStatus: [], 
+            weeklyAppts: [], 
+            recentActivity: [], 
+            alerts: [{ title: "System Error", message: "Could not load data." }] 
+        });
     }
 });
 
