@@ -33,7 +33,7 @@ const getDailyAppointments = (date, status) => {
     });
 };
 
-// Helper 3: Get Today's detailed schedule (Accepts dynamic date)
+// Helper 3: Get Today's detailed schedule
 const getTodaySchedule = (date) => {
     return new Promise((resolve, reject) => {
         const sql = `
@@ -49,8 +49,6 @@ const getTodaySchedule = (date) => {
         `;
         db.query(sql, [date], (err, results) => {
             if (err) return reject(err);
-
-            // Handle case where results might be undefined
             if (!results) return resolve([]);
 
             const schedule = results.map(row => ({
@@ -91,42 +89,65 @@ const getDoctorStatus = () => {
     });
 };
 
-// Helper 5: Get weekly appointment totals
+// Helper 5: Get weekly appointment totals (TIMEZONE FIXED)
 const getWeeklyApptData = () => {
     return new Promise((resolve, reject) => {
+        // 1. Generate the last 7 dates using LOCAL time components
+        // This fixes bugs where UTC time might make "Today" appear as yesterday
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            
+            days.push(`${year}-${month}-${day}`); // YYYY-MM-DD
+        }
+
+        // 2. Query database
         const sql = `
             SELECT 
-                DATE(date) as day, 
+                DATE(date) as dateStr, 
                 COUNT(id) as count 
             FROM appointments 
-            WHERE date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) 
-            GROUP BY DATE(date) 
-            ORDER BY DATE(date) ASC
+            WHERE date >= ? 
+            GROUP BY DATE(date)
         `;
-        db.query(sql, (err, results) => {
+        
+        db.query(sql, [days[0]], (err, results) => {
             if (err) return reject(err);
-            if (!results) return resolve([]);
-
-            const weeklyData = results.map(row => {
-                // Safety check: ensure row.day is a valid date object before converting
-                let dayLabel = 'N/A';
-                if (row.day) {
-                    const d = new Date(row.day);
-                    if (!isNaN(d.getTime())) {
-                        dayLabel = d.toLocaleDateString('en-US', { weekday: 'short' });
+            
+            const countsMap = {};
+            if (results) {
+                results.forEach(r => {
+                    let key = r.dateStr;
+                    // Handle MySQL Date object conversion
+                    if (r.dateStr instanceof Date) {
+                        const year = r.dateStr.getFullYear();
+                        const month = String(r.dateStr.getMonth() + 1).padStart(2, '0');
+                        const day = String(r.dateStr.getDate()).padStart(2, '0');
+                        key = `${year}-${month}-${day}`;
                     }
-                }
+                    countsMap[key] = r.count;
+                });
+            }
+
+            const weeklyData = days.map(dateStr => {
+                const dateObj = new Date(dateStr);
                 return {
-                    day: dayLabel,
-                    count: row.count
+                    day: dateObj.toLocaleDateString('en-US', { weekday: 'short' }),
+                    count: countsMap[dateStr] || 0
                 };
             });
+
             resolve(weeklyData);
         });
     });
 };
 
-// Helper 6: Get recent activity logs
+// Helper 6: Get recent activity
 const getRecentActivity = () => {
     return new Promise((resolve, reject) => {
         const sql = `SELECT * FROM activity_logs ORDER BY created_at DESC LIMIT 5`;
@@ -137,7 +158,7 @@ const getRecentActivity = () => {
     });
 };
 
-// Helper 7: Get doctors on leave for a specific date (NEW)
+// Helper 7: Get doctors on leave
 const getDoctorLeaves = (date) => {
     return new Promise((resolve, reject) => {
         const sql = `
@@ -157,14 +178,12 @@ const getDoctorLeaves = (date) => {
 
 router.get('/summary', async (req, res) => {
     try {
-        // 1. Robust Manual Date Calculation (YYYY-MM-DD) based on Local Time
+        // 1. Calculate Dynamic Today using LOCAL time
         const now = new Date();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
         const dynamicToday = `${year}-${month}-${day}`;
-
-        console.log("Fetching dashboard for date:", dynamicToday); // Debug Log
 
         const [
             totalPatients, 
@@ -175,7 +194,7 @@ router.get('/summary', async (req, res) => {
             doctorStatus, 
             weeklyAppts,
             recentActivity,
-            todaysLeaves // <--- NEW: Result from getDoctorLeaves
+            todaysLeaves 
         ] = await Promise.all([
             getCount('patients'),
             getDailyAppointments(dynamicToday, null),
@@ -184,7 +203,6 @@ router.get('/summary', async (req, res) => {
                 const sql = "SELECT DISTINCT date FROM appointments WHERE status != 'Cancelled'";
                 db.query(sql, (err, results) => {
                     if (err) return reject(err);
-                    // Safety map
                     const dates = (results || []).map(r => {
                         try { return r.date.toISOString().split('T')[0]; } 
                         catch (e) { return null; }
@@ -196,32 +214,28 @@ router.get('/summary', async (req, res) => {
             getDoctorStatus(),
             getWeeklyApptData(),
             getRecentActivity(),
-            getDoctorLeaves(dynamicToday) // <--- NEW: Call the helper
+            getDoctorLeaves(dynamicToday)
         ]);
 
-        // --- NEW: Generate Alerts Logic ---
         const alerts = [];
 
-        // Alert A: Doctor Leaves
         if (todaysLeaves.length > 0) {
             todaysLeaves.forEach(leave => {
                 alerts.push({
                     title: "Doctor Absent",
                     message: `Dr. ${leave.last_name} is on leave (${leave.reason}).`,
-                    type: "warning" // Matches frontend CSS .alert-item.warning
+                    type: "warning"
                 });
             });
         }
 
-        // Alert B: High Pending Count (Optional Bonus)
         if (pendingAppts > 5) {
             alerts.push({
                 title: "Action Required",
                 message: `${pendingAppts} appointments are pending confirmation.`,
-                type: "danger" // Matches frontend CSS .alert-item.danger
+                type: "danger"
             });
         }
-        // ----------------------------------
 
         res.json({
             totalPatients,
@@ -232,12 +246,11 @@ router.get('/summary', async (req, res) => {
             doctorStatus: doctorStatus, 
             weeklyAppts: weeklyAppts, 
             recentActivity: recentActivity, 
-            alerts: alerts // <--- Updated to send real alerts
+            alerts: alerts 
         });
 
     } catch (error) {
         console.error('Dashboard summary error:', error);
-        // Return a basic valid structure even on error to prevent white screen
         res.json({
             totalPatients: 0,
             todayAppts: 0,

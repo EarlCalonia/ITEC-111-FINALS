@@ -235,7 +235,19 @@ tr:hover td { background-color: #f1f5f9; }
 .weekly-overview h4 { font-weight: 700; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; font-size: 1rem; }
 .chart-container { display: flex; flex-direction: column; gap: 1rem; }
 .chart-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem; color: #64748b; }
-.bar-chart { display: flex; align-items: flex-end; gap: 0.8rem; height: 150px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; overflow: hidden; }
+.bar-chart { 
+  display: flex; 
+  align-items: flex-end; 
+  gap: 0.8rem; 
+  
+  /* FIXED: Increased height and added padding-top */
+  height: 170px;       /* Increased from 150px */
+  padding-top: 30px;   /* Creates space for the numbers */
+  
+  padding-bottom: 10px; 
+  border-bottom: 1px solid #e2e8f0; 
+  overflow: hidden; 
+}
 .bar-wrapper { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 0.5rem; }
 .bar { width: 100%; border-radius: 6px; transition: all 0.3s; position: relative; min-height: 4px; }
 .bar.today { background-color: #3b82f6; }
