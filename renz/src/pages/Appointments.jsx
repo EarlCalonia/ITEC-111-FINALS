@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Eye, Calendar as CalendarIcon, X, Clock, Mail, FileText, Plus, Search, ChevronDown, AlertCircle } from 'lucide-react';
+import { Eye, Calendar as CalendarIcon, X, Clock, Mail, FileText, Plus, Search, ChevronDown, AlertCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 import '../styles/Appointments.css';
 
 // Constants
@@ -41,6 +41,10 @@ export default function Appointments() {
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false);
   const [patientSearch, setPatientSearch] = useState(''); 
   const [errors, setErrors] = useState({});
+
+  // Message Box State
+  const [messageBox, setMessageBox] = useState({ show: false, title: '', message: '', type: 'success' });
+  const closeMessageBox = () => setMessageBox({ ...messageBox, show: false });
 
   // 2. FETCH DATA FROM API
   const fetchAllData = async () => {
@@ -106,28 +110,22 @@ export default function Appointments() {
 
   // --- NEW: CHECK IF SLOT IS WITHIN DOCTOR'S SHIFT ---
   const isTimeWithinShift = (slotTime, doctorId) => {
-    if (!doctorId) return true; // Default to open if no doctor selected yet
-    
+    if (!doctorId) return true; 
     const doctor = doctorsList.find(d => d.id === parseInt(doctorId));
     if (!doctor || !doctor.scheduleStart || !doctor.scheduleEnd) return true;
 
-    // Convert Slot Time (e.g. "02:30 PM") to minutes from midnight
     const [timePart, modifier] = slotTime.split(' ');
     let [hours, minutes] = timePart.split(':').map(Number);
     if (modifier === 'PM' && hours !== 12) hours += 12;
     if (modifier === 'AM' && hours === 12) hours = 0;
     const slotMinutes = hours * 60 + minutes;
 
-    // Convert Shift Start (e.g. "13:00:00") to minutes
     const [startH, startM] = doctor.scheduleStart.split(':').map(Number);
     const startMinutes = startH * 60 + startM;
 
-    // Convert Shift End to minutes
     const [endH, endM] = doctor.scheduleEnd.split(':').map(Number);
     const endMinutes = endH * 60 + endM;
 
-    // Check if slot is within range
-    // We use >= start and < end so they can't book exactly at the closing minute
     return slotMinutes >= startMinutes && slotMinutes < endMinutes;
   };
 
@@ -217,8 +215,10 @@ export default function Appointments() {
         }
         fetchAllData(); 
         setIsModalOpen(false);
+        setMessageBox({ show: true, title: 'Success', message: modalMode === 'create' ? 'Appointment booked successfully!' : 'Appointment updated successfully!', type: 'success' });
     } catch (err) {
         console.error("Error saving appointment:", err);
+        setMessageBox({ show: true, title: 'Error', message: 'Failed to save appointment.', type: 'error' });
     }
   };
 
@@ -233,8 +233,10 @@ export default function Appointments() {
             await fetch(`http://localhost:5000/api/appointments/${aptToDelete.id}`, { method: 'DELETE' });
             fetchAllData();
             setAptToDelete(null); 
+            setMessageBox({ show: true, title: 'Success', message: 'Appointment cancelled.', type: 'success' });
         } catch (err) {
             console.error("Error deleting:", err);
+            setMessageBox({ show: true, title: 'Error', message: 'Failed to cancel appointment.', type: 'error' });
         }
     } 
   };
@@ -249,7 +251,8 @@ export default function Appointments() {
       </div>
 
       <div className="dashboard-filters-card">
-        <div className="dashboard-filters-row" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr' }}>
+        {/* FIXED: Balanced Width Grid */}
+        <div className="dashboard-filters-row" style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr 1fr 1fr 1.5fr', gap: '1rem', width: '100%' }}>
           <div className="dashboard-filter-group"><label>Search</label><div className="filter-input-wrapper"><Search size={16} className="filter-input-icon" /><input type="text" placeholder="Patient or Type..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div></div>
           <div className="dashboard-filter-group"><label>Date</label><input type="date" className="form-control" style={{height: '40px'}} value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} /></div>
           <div className="dashboard-filter-group"><label>Status</label><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All Status</option><option value="Confirmed">Confirmed</option><option value="Pending">Pending</option><option value="Completed">Completed</option></select></div>
@@ -310,8 +313,10 @@ export default function Appointments() {
                 </div>
                 <div className="modal-footer">
                   <button className="btn btn-outline" onClick={() => setIsModalOpen(false)}>Close</button>
-                  {selectedApt.status === 'Pending' && ( <button className="btn btn-primary" style={{ backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)' }} onClick={async () => { try { await fetch(`http://localhost:5000/api/appointments/${selectedApt.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient_id: selectedApt.patient_id, doctor_id: selectedApt.doctor_id, date: selectedApt.date, time: selectedApt.time, type: selectedApt.type, notes: selectedApt.notes, status: 'Confirmed' }) }); fetchAllData(); setIsModalOpen(false); } catch (err) { console.error("Error confirming:", err); } }}>Confirm Appointment</button> )}
-                  {selectedApt.status === 'Confirmed' && ( <button className="btn btn-primary" style={{ backgroundColor: 'var(--success)', borderColor: 'var(--success)' }} onClick={async () => { try { await fetch(`http://localhost:5000/api/appointments/${selectedApt.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient_id: selectedApt.patient_id, doctor_id: selectedApt.doctor_id, date: selectedApt.date, time: selectedApt.time, type: selectedApt.type, notes: selectedApt.notes, status: 'Completed' }) }); fetchAllData(); setIsModalOpen(false); } catch (err) { console.error("Error completing:", err); } }}>Mark Completed</button> )}
+                  {selectedApt.status === 'Pending' && ( <button className="btn btn-primary" style={{ backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)' }} 
+                    onClick={async () => { try { await fetch(`http://localhost:5000/api/appointments/${selectedApt.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient_id: selectedApt.patient_id, doctor_id: selectedApt.doctor_id, date: selectedApt.date, time: selectedApt.time, type: selectedApt.type, notes: selectedApt.notes, status: 'Confirmed' }) }); fetchAllData(); setIsModalOpen(false); setMessageBox({ show: true, title: 'Success', message: 'Appointment confirmed.', type: 'success' }); } catch (err) { console.error("Error confirming:", err); } }}>Confirm Appointment</button> )}
+                  {selectedApt.status === 'Confirmed' && ( <button className="btn btn-primary" style={{ backgroundColor: 'var(--success)', borderColor: 'var(--success)' }} 
+                    onClick={async () => { try { await fetch(`http://localhost:5000/api/appointments/${selectedApt.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patient_id: selectedApt.patient_id, doctor_id: selectedApt.doctor_id, date: selectedApt.date, time: selectedApt.time, type: selectedApt.type, notes: selectedApt.notes, status: 'Completed' }) }); fetchAllData(); setIsModalOpen(false); setMessageBox({ show: true, title: 'Success', message: 'Appointment marked as completed.', type: 'success' }); } catch (err) { console.error("Error completing:", err); } }}>Mark Completed</button> )}
                   {!isEditLocked(selectedApt.status) && ( <button className="btn btn-primary" onClick={() => handleReschedule(selectedApt)}>Edit</button> )}
                 </div>
               </>
@@ -349,13 +354,8 @@ export default function Appointments() {
                           const booked = isSlotBooked(time); 
                           const isPast = isTimeSlotPast(time, formData.date);
                           const leaveReason = getDoctorLeaveStatus(formData.date, formData.doctor_id);
-                          
-                          // --- NEW: CHECK IF TIME IS IN DOCTOR'S SHIFT ---
                           const isShiftValid = isTimeWithinShift(time, formData.doctor_id);
-
                           const isSelected = formData.time === time; 
-                          
-                          // Disabled if: Booked OR Past OR On Leave OR No Doctor Selected OR Outside Shift
                           const isDisabled = booked || isPast || !!leaveReason || !formData.doctor_id || !formData.date || !isShiftValid;
 
                           return ( 
@@ -370,10 +370,7 @@ export default function Appointments() {
                               <span style={{ fontSize: '0.85rem' }}>{time}</span> 
                               {booked && ( <span className="booked-label">Booked</span> )} 
                               {isPast && !booked && ( <span className="booked-label" style={{color:'#94a3b8'}}>Passed</span> )}
-                              
-                              {/* Label for Out of Shift */}
                               {!isShiftValid && !leaveReason && ( <span className="booked-label" style={{color:'#94a3b8'}}>Closed</span> )}
-
                               {leaveReason && !isPast && !booked && (
                                 <span className="booked-label" style={{color: 'var(--warning)'}}>{leaveReason}</span>
                               )}
@@ -382,7 +379,6 @@ export default function Appointments() {
                         })}
                       </div>
                       
-                      {/* Helper text */}
                       {getDoctorLeaveStatus(formData.date, formData.doctor_id) ? (
                         <div style={{marginTop:'8px', color: 'var(--warning)', fontSize: '0.8rem', display:'flex', alignItems:'center', gap:'4px'}}>
                             <AlertCircle size={14}/> Doctor is on leave ({getDoctorLeaveStatus(formData.date, formData.doctor_id)})
@@ -411,10 +407,50 @@ export default function Appointments() {
 
       {aptToDelete && (
         <div className="modal-overlay" onClick={() => setAptToDelete(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-             <div className="modal-header"><h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Cancel Appointment</h3><button onClick={() => setAptToDelete(null)} className="modal-close"><X size={20} /></button></div>
-            <div className="modal-body"><p className="modal-text">Are you sure you want to cancel the appointment for <strong>{aptToDelete.patient}</strong>? This action cannot be undone.</p></div>
-            <div className="modal-footer"><button className="btn btn-outline" onClick={() => setAptToDelete(null)}>Keep</button><button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', boxShadow: 'none' }} onClick={confirmDelete}>Cancel Appointment</button></div>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }}
+          >
+             <div className="modal-header">
+               <h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Cancel Appointment</h3>
+               <button onClick={() => setAptToDelete(null)} className="modal-close"><X size={20} /></button>
+             </div>
+            <div className="modal-body" style={{ flex: '0 0 auto' }}>
+              <p className="modal-text">Are you sure you want to cancel the appointment for <strong>{aptToDelete.patient}</strong>? This action cannot be undone.</p>
+            </div>
+            <div className="modal-footer" style={{ flex: '0 0 auto' }}>
+              <button className="btn btn-outline" onClick={() => setAptToDelete(null)}>Keep</button>
+              <button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', boxShadow: 'none' }} onClick={confirmDelete}>Cancel Appointment</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Message Box */}
+      {messageBox.show && (
+        <div className="modal-overlay" onClick={closeMessageBox}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center', padding: '2rem', height: 'auto', minHeight: 'unset' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                {messageBox.type === 'success' ? (
+                    <div style={{ padding: '12px', borderRadius: '50%', background: '#dcfce7' }}>
+                        <CheckCircle size={48} color="#166534" />
+                    </div>
+                ) : (
+                    <div style={{ padding: '12px', borderRadius: '50%', background: '#fee2e2' }}>
+                        <AlertTriangle size={48} color="#991b1b" />
+                    </div>
+                )}
+                
+                <div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-dark)' }}>{messageBox.title}</h3>
+                    <p style={{ color: 'var(--text-light)', margin: 0, fontSize: '0.95rem' }}>{messageBox.message}</p>
+                </div>
+
+                <button className="btn btn-primary" onClick={closeMessageBox} style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}>
+                    OK
+                </button>
+            </div>
           </div>
         </div>
       )}

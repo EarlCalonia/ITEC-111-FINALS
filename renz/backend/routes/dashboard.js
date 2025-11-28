@@ -137,6 +137,22 @@ const getRecentActivity = () => {
     });
 };
 
+// Helper 7: Get doctors on leave for a specific date (NEW)
+const getDoctorLeaves = (date) => {
+    return new Promise((resolve, reject) => {
+        const sql = `
+            SELECT d.first_name, d.last_name, l.reason 
+            FROM doctor_leaves l
+            JOIN doctors d ON l.doctor_id = d.id
+            WHERE l.leave_date = ?
+        `;
+        db.query(sql, [date], (err, results) => {
+            if (err) return reject(err);
+            resolve(results || []);
+        });
+    });
+};
+
 // --- Main Route ---
 
 router.get('/summary', async (req, res) => {
@@ -158,7 +174,8 @@ router.get('/summary', async (req, res) => {
             todaySchedule, 
             doctorStatus, 
             weeklyAppts,
-            recentActivity 
+            recentActivity,
+            todaysLeaves // <--- NEW: Result from getDoctorLeaves
         ] = await Promise.all([
             getCount('patients'),
             getDailyAppointments(dynamicToday, null),
@@ -178,8 +195,33 @@ router.get('/summary', async (req, res) => {
             getTodaySchedule(dynamicToday), 
             getDoctorStatus(),
             getWeeklyApptData(),
-            getRecentActivity()
+            getRecentActivity(),
+            getDoctorLeaves(dynamicToday) // <--- NEW: Call the helper
         ]);
+
+        // --- NEW: Generate Alerts Logic ---
+        const alerts = [];
+
+        // Alert A: Doctor Leaves
+        if (todaysLeaves.length > 0) {
+            todaysLeaves.forEach(leave => {
+                alerts.push({
+                    title: "Doctor Absent",
+                    message: `Dr. ${leave.last_name} is on leave (${leave.reason}).`,
+                    type: "warning" // Matches frontend CSS .alert-item.warning
+                });
+            });
+        }
+
+        // Alert B: High Pending Count (Optional Bonus)
+        if (pendingAppts > 5) {
+            alerts.push({
+                title: "Action Required",
+                message: `${pendingAppts} appointments are pending confirmation.`,
+                type: "danger" // Matches frontend CSS .alert-item.danger
+            });
+        }
+        // ----------------------------------
 
         res.json({
             totalPatients,
@@ -190,7 +232,7 @@ router.get('/summary', async (req, res) => {
             doctorStatus: doctorStatus, 
             weeklyAppts: weeklyAppts, 
             recentActivity: recentActivity, 
-            alerts: [] 
+            alerts: alerts // <--- Updated to send real alerts
         });
 
     } catch (error) {

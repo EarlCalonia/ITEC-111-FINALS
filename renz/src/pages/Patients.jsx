@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import '../styles/Patients.css';
-import { Plus, Search, Eye, Edit2, Trash2, FileDown, ChevronLeft, ChevronRight, X, Phone, Mail, Calendar, Activity } from 'lucide-react';
+// 1. Add CheckCircle and AlertTriangle to imports
+import { Plus, Search, Eye, Edit2, Trash2, FileDown, ChevronLeft, ChevronRight, X, Phone, Mail, Calendar, Activity, CheckCircle, AlertTriangle } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -21,7 +22,6 @@ const sortData = (data, sortConfig) => {
 };
 
 export default function Patients() {
-  // 1. Initialize with empty array
   const [patientsData, setPatientsData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
@@ -35,7 +35,11 @@ export default function Patients() {
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', dob: '', status: 'Active' });
   const [errors, setErrors] = useState({});
 
-  // 2. Fetch Data from Backend
+  // 2. Message Box State
+  const [messageBox, setMessageBox] = useState({ show: false, title: '', message: '', type: 'success' });
+  const closeMessageBox = () => setMessageBox({ ...messageBox, show: false });
+
+  // Fetch Data
   const fetchPatients = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/patients');
@@ -50,7 +54,7 @@ export default function Patients() {
     fetchPatients();
   }, []);
 
-  // Filter & Sort Logic (Client-side for now)
+  // Filter & Sort Logic
   const filteredPatients = useMemo(() => { 
     const term = searchTerm.toLowerCase(); 
     return patientsData.filter((patient) => 
@@ -83,7 +87,6 @@ export default function Patients() {
 
   const openEdit = (patient) => { 
     setSelectedPatient(patient); 
-    // Important: Convert ISO date to YYYY-MM-DD for input field
     const formattedDOB = patient.dob ? new Date(patient.dob).toISOString().split('T')[0] : '';
     setFormData({ ...patient, dob: formattedDOB }); 
     setErrors({}); 
@@ -93,7 +96,7 @@ export default function Patients() {
 
   const closeModal = () => { setIsModalOpen(false); setSelectedPatient(null); };
   
-  // 3. Handle Create and Update via API
+  // 3. Handle Save (With Message Box)
   const handleSavePatient = async (e) => {
     e.preventDefault();
     const newErrors = {};
@@ -105,140 +108,91 @@ export default function Patients() {
 
     try {
       if (modalMode === 'edit' && selectedPatient) {
-        // UPDATE Existing
         await fetch(`http://localhost:5000/api/patients/${selectedPatient.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         });
       } else if (modalMode === 'create') {
-        // CREATE New
         await fetch('http://localhost:5000/api/patients', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         });
       }
-      // Refresh list
       fetchPatients();
       closeModal();
+      
+      // Success Message
+      setMessageBox({ show: true, title: 'Success', message: modalMode === 'create' ? 'Patient registered successfully!' : 'Patient record updated!', type: 'success' });
+
     } catch (error) {
       console.error('Error saving patient:', error);
-      alert('Failed to save patient. Check console.');
+      // Error Message (Replaced alert)
+      setMessageBox({ show: true, title: 'Error', message: 'Failed to save patient. Please check your connection.', type: 'error' });
     }
   };
 
-  // 4. Handle Delete via API
+  // 4. Handle Delete (With Message Box)
   const handleDeleteConfirm = async () => {
     if (patientToDelete) { 
         try {
-            await fetch(`http://localhost:5000/api/patients/${patientToDelete.id}`, {
-                method: 'DELETE'
-            });
+            await fetch(`http://localhost:5000/api/patients/${patientToDelete.id}`, { method: 'DELETE' });
             fetchPatients();
             setPatientToDelete(null); 
+            // Success Message
+            setMessageBox({ show: true, title: 'Success', message: 'Patient record deleted.', type: 'success' });
         } catch (error) {
             console.error("Error deleting patient:", error);
+            setMessageBox({ show: true, title: 'Error', message: 'Failed to delete record.', type: 'error' });
         }
     } 
   };
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
-
-    // --- 1. REPORT HEADER ---
-    // Company Name (Blue, Bold, Large)
     doc.setFontSize(22);
-    doc.setTextColor(59, 130, 246); // var(--primary-color) #3b82f6
+    doc.setTextColor(59, 130, 246); 
     doc.setFont("helvetica", "bold");
     doc.text("CALONIA", 14, 20);
-
-    // Subtitle / System Name
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.setFont("helvetica", "normal");
     doc.text("Centralized Appointment & Logistics Operations", 14, 26);
-    
-    // Line separator
     doc.setDrawColor(200); 
-    doc.line(14, 30, 196, 30); // Horizontal line
-
-    // Report Title & Date
+    doc.line(14, 30, 196, 30);
     doc.setFontSize(14);
     doc.setTextColor(0);
     doc.text("Patient Records Registry", 14, 42);
-    
     doc.setFontSize(10);
     doc.setTextColor(100);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     doc.text(`Generated on: ${today}`, 14, 48);
 
-    // --- 2. TABLE DATA PREPARATION ---
     const tableColumn = ["ID", "Name", "Phone", "Email", "DOB", "Last Visit", "Status"];
-    const tableRows = patientsData.map(p => [
-      p.id,
-      p.name,
-      p.phone,
-      p.email || '--',
-      formatDOB(p.dob),
-      p.lastVisit || 'New Patient',
-      p.status
-    ]);
+    const tableRows = patientsData.map(p => [ p.id, p.name, p.phone, p.email || '--', formatDOB(p.dob), p.lastVisit || 'New Patient', p.status ]);
 
-    // --- 3. GENERATE TABLE WITH STYLING ---
     autoTable(doc, {
       startY: 55,
       head: [tableColumn],
       body: tableRows,
       theme: 'grid',
-      
-      // Header Style (Blue background)
-      headStyles: { 
-        fillColor: [59, 130, 246], 
-        textColor: 255, 
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      
-      // Body Style
-      bodyStyles: { 
-        textColor: 50,
-        fontSize: 9 
-      },
-      
-      // Alternate Row Colors
-      alternateRowStyles: { 
-        fillColor: [240, 249, 255] // Very light blue
-      },
-      
-      // Column Specific Styles (Optional alignment)
-      columnStyles: {
-        0: { halign: 'center', cellWidth: 15 }, // ID
-        6: { halign: 'center', fontStyle: 'bold' } // Status
-      },
-
-      // --- 4. FOOTER (Page Numbers) ---
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', halign: 'center' },
+      bodyStyles: { textColor: 50, fontSize: 9 },
+      alternateRowStyles: { fillColor: [240, 249, 255] },
+      columnStyles: { 0: { halign: 'center', cellWidth: 15 }, 6: { halign: 'center', fontStyle: 'bold' } },
       didDrawPage: function (data) {
-        // Footer text
         const pageCount = doc.internal.getNumberOfPages();
         const pageSize = doc.internal.pageSize;
         const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
-        
         doc.setFontSize(8);
         doc.setTextColor(150);
-        doc.text(
-          `Page ${data.pageNumber} of ${pageCount}`, 
-          data.settings.margin.left, 
-          pageHeight - 10
-        );
-        
-        // Right-aligned footer text
+        doc.text(`Page ${data.pageNumber} of ${pageCount}`, data.settings.margin.left, pageHeight - 10);
         const footerText = "CALONIA Clinic System - Confidential";
         const textWidth = doc.getTextWidth(footerText);
         doc.text(footerText, pageSize.width - data.settings.margin.right - textWidth, pageHeight - 10);
       }
     });
-
     doc.save('calonia_patients_report.pdf');
   };
 
@@ -250,8 +204,21 @@ export default function Patients() {
       </div>
 
       <div className="dashboard-filters-card">
-        <div className="dashboard-filters-row">
-          <div className="dashboard-filter-group" style={{ gridColumn: '1 / -1' }}><label>Search Patients</label><div className="filter-input-wrapper"><Search size={16} className="filter-input-icon" /><input type="text" placeholder="Search by name, phone, or ID" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} /></div></div>
+        {/* FIXED: Full width single column grid */}
+        <div className="dashboard-filters-row" style={{ display: 'grid', gridTemplateColumns: '1fr', width: '100%' }}>
+          <div className="dashboard-filter-group" style={{ width: '100%' }}>
+            <label>Search Patients</label>
+            <div className="filter-input-wrapper" style={{ width: '100%' }}>
+              <Search size={16} className="filter-input-icon" />
+              <input 
+                type="text" 
+                placeholder="Search by name, phone, or ID" 
+                value={searchTerm} 
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} 
+                style={{ width: '100%' }} // Ensures input fills wrapper
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -279,11 +246,28 @@ export default function Patients() {
 
       {isModalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            // FIXED: 
+            // 1. maxWidth reduced to 450px (tighter)
+            // 2. height set to 'auto' (removes empty bottom space)
+            // 3. maxHeight set to 90vh (scrolls if screen is small)
+            style={{ 
+              maxWidth: '450px', 
+              width: '95%', 
+              height: 'auto', 
+              maxHeight: '90vh',
+              display: 'flex', 
+              flexDirection: 'column' 
+            }}
+          >
             <div className="modal-header">
               <h3 style={{ fontWeight: 'bold', fontSize: '1.25rem' }}>{modalMode === 'view' ? 'Patient Profile' : modalMode === 'edit' ? 'Edit Patient' : 'New Patient'}</h3><button onClick={closeModal} className="modal-close"><X size={20} /></button>
             </div>
-            <div className="modal-body">
+            
+            {/* Body: Allows scrolling if content is too long for small screens */}
+            <div className="modal-body" style={{ flex: '1', overflowY: 'auto' }}>
               {modalMode === 'view' && selectedPatient && (
                 <div className="view-details">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9' }}>
@@ -314,17 +298,59 @@ export default function Patients() {
                 </form>
               )}
             </div>
-            <div className="modal-footer">{modalMode === 'view' ? ( <> <button className="btn btn-outline" onClick={closeModal}>Close</button> <button className="btn btn-primary" onClick={() => openEdit(selectedPatient)}>Edit Record</button> </> ) : ( <> <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button> <button type="submit" form="patient-form" className="btn btn-primary">{modalMode === 'edit' ? 'Save Changes' : 'Create Patient'}</button> </> )}</div>
+            {/* Footer: Stays attached to the bottom of the content */}
+            <div className="modal-footer" style={{ flex: '0 0 auto' }}>{modalMode === 'view' ? ( <> <button className="btn btn-outline" onClick={closeModal}>Close</button> <button className="btn btn-primary" onClick={() => openEdit(selectedPatient)}>Edit Record</button> </> ) : ( <> <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button> <button type="submit" form="patient-form" className="btn btn-primary">{modalMode === 'edit' ? 'Save Changes' : 'Create Patient'}</button> </> )}</div>
           </div>
         </div>
       )}
 
       {patientToDelete && (
         <div className="modal-overlay" onClick={() => setPatientToDelete(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-             <div className="modal-header"><h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Delete Patient</h3><button onClick={() => setPatientToDelete(null)} className="modal-close"><X size={20} /></button></div>
-            <div className="modal-body"><p className="modal-text">Are you sure you want to delete <strong>{patientToDelete.name}</strong>? This action cannot be undone.</p></div>
-            <div className="modal-footer"><button className="btn btn-outline" onClick={() => setPatientToDelete(null)}>Cancel</button><button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', boxShadow: 'none' }} onClick={handleDeleteConfirm}>Delete Permanently</button></div>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            // FIXED: Compact size
+            style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }}
+          >
+             <div className="modal-header">
+               <h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Delete Patient</h3>
+               <button onClick={() => setPatientToDelete(null)} className="modal-close"><X size={20} /></button>
+             </div>
+            <div className="modal-body" style={{ flex: '0 0 auto' }}>
+              <p className="modal-text">Are you sure you want to delete <strong>{patientToDelete.name}</strong>? This action cannot be undone.</p>
+            </div>
+            <div className="modal-footer" style={{ flex: '0 0 auto' }}>
+              <button className="btn btn-outline" onClick={() => setPatientToDelete(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', boxShadow: 'none' }} onClick={handleDeleteConfirm}>Delete Permanently</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Custom Message Box */}
+      {messageBox.show && (
+        <div className="modal-overlay" onClick={closeMessageBox}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center', padding: '2rem', height: 'auto', minHeight: 'unset' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                {messageBox.type === 'success' ? (
+                    <div style={{ padding: '12px', borderRadius: '50%', background: '#dcfce7' }}>
+                        <CheckCircle size={48} color="#166534" />
+                    </div>
+                ) : (
+                    <div style={{ padding: '12px', borderRadius: '50%', background: '#fee2e2' }}>
+                        <AlertTriangle size={48} color="#991b1b" />
+                    </div>
+                )}
+                
+                <div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-dark)' }}>{messageBox.title}</h3>
+                    <p style={{ color: 'var(--text-light)', margin: 0, fontSize: '0.95rem' }}>{messageBox.message}</p>
+                </div>
+
+                <button className="btn btn-primary" onClick={closeMessageBox} style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}>
+                    OK
+                </button>
+            </div>
           </div>
         </div>
       )}

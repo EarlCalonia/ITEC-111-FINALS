@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/Doctors.css';
-import { Plus, Edit2, Trash2, X, Search, Phone, Mail, Clock, ShieldAlert, CalendarPlus } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Search, Phone, Mail, Clock, ShieldAlert, CalendarPlus, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export default function Doctors() {
   const [doctors, setDoctors] = useState([]);
@@ -11,17 +11,22 @@ export default function Doctors() {
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState(null);
   
+  // Message Box State
+  const [messageBox, setMessageBox] = useState({ show: false, title: '', message: '', type: 'success' });
+  const closeMessageBox = () => setMessageBox({ ...messageBox, show: false });
+
   // ID for blocking time
   const [blockingDoctorId, setBlockingDoctorId] = useState('');
   const [isDoctorFixed, setIsDoctorFixed] = useState(false);
   
+  // Delete States
   const [doctorToDelete, setDoctorToDelete] = useState(null);
+  const [leaveToDelete, setLeaveToDelete] = useState(null); // <--- NEW: State for leave deletion
+  
   const [errors, setErrors] = useState({});
 
   // Forms
   const [doctorForm, setDoctorForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: '', scheduleStart: '09:00', scheduleEnd: '17:00' });
-  
-  // --- UPDATED BLOCK FORM: Added endDate ---
   const [blockForm, setBlockForm] = useState({ reason: '', date: '', endDate: '', notes: '' });
 
   // 1. FETCH DATA
@@ -82,8 +87,10 @@ export default function Doctors() {
         }
         fetchDoctors();
         setIsDoctorModalOpen(false);
+        setMessageBox({ show: true, title: 'Success', message: 'Doctor profile saved.', type: 'success' });
     } catch (err) {
         console.error("Error saving doctor:", err);
+        setMessageBox({ show: true, title: 'Error', message: 'Failed to save profile.', type: 'error' });
     }
   };
 
@@ -91,8 +98,6 @@ export default function Doctors() {
   const handleOpenBlock = (specificId = '') => { 
     setBlockingDoctorId(specificId ? specificId.toString() : ''); 
     setIsDoctorFixed(!!specificId); 
-    
-    // Reset form including endDate
     setBlockForm({ reason: '', date: '', endDate: '', notes: '' }); 
     setErrors({}); 
     setIsBlockModalOpen(true); 
@@ -108,13 +113,10 @@ export default function Doctors() {
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     try {
-        // --- NEW LOGIC: HANDLE DATE RANGE LOOP ---
         const start = new Date(blockForm.date);
         const end = blockForm.endDate ? new Date(blockForm.endDate) : new Date(blockForm.date);
         
-        // Loop through every day from Start to End
         for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
-            // Format to YYYY-MM-DD using Local Time
             const year = dt.getFullYear();
             const month = String(dt.getMonth() + 1).padStart(2, '0');
             const day = String(dt.getDate()).padStart(2, '0');
@@ -133,19 +135,30 @@ export default function Doctors() {
 
         fetchDoctors();
         setIsBlockModalOpen(false);
+        setMessageBox({ show: true, title: 'Success', message: 'Leave added successfully!', type: 'success' });
+
     } catch (err) {
         console.error("Error adding leave:", err);
+        setMessageBox({ show: true, title: 'Error', message: 'Failed to add leave.', type: 'error' });
     }
   };
 
-  // 4. REMOVE LEAVE
-  const handleRemoveLeave = async (leaveId) => {
-    if (!window.confirm("Remove this leave entry?")) return;
-    try {
-        await fetch(`http://localhost:5000/api/doctors/leaves/${leaveId}`, { method: 'DELETE' });
-        fetchDoctors();
-    } catch (err) {
-        console.error("Error deleting leave:", err);
+  // 4. REMOVE LEAVE (Updated to use Modal)
+  const handleRemoveLeave = (leave) => {
+    setLeaveToDelete(leave); // Opens the confirmation modal
+  };
+
+  const confirmRemoveLeave = async () => {
+    if (leaveToDelete) {
+        try {
+            await fetch(`http://localhost:5000/api/doctors/leaves/${leaveToDelete.id}`, { method: 'DELETE' });
+            fetchDoctors();
+            setLeaveToDelete(null);
+            setMessageBox({ show: true, title: 'Success', message: 'Leave removed.', type: 'success' });
+        } catch (err) {
+            console.error("Error deleting leave:", err);
+            setMessageBox({ show: true, title: 'Error', message: 'Failed to remove leave.', type: 'error' });
+        }
     }
   };
 
@@ -156,8 +169,10 @@ export default function Doctors() {
             await fetch(`http://localhost:5000/api/doctors/${doctorToDelete.id}`, { method: 'DELETE' });
             fetchDoctors();
             setDoctorToDelete(null);
+            setMessageBox({ show: true, title: 'Success', message: 'Doctor deleted.', type: 'success' });
         } catch (err) {
             console.error("Error deleting doctor:", err);
+            setMessageBox({ show: true, title: 'Error', message: 'Failed to delete doctor.', type: 'error' });
         }
     }
   };
@@ -175,8 +190,21 @@ export default function Doctors() {
       </div>
 
       <div className="dashboard-filters-card">
-        <div className="dashboard-filters-row">
-          <div className="dashboard-filter-group" style={{ gridColumn: '1 / -1' }}><label>Search Doctors</label><div className="filter-input-wrapper"><Search size={16} className="filter-input-icon" /><input type="text" placeholder="Search by name or specialization..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/></div></div>
+        {/* FIXED: Full width single column grid */}
+        <div className="dashboard-filters-row" style={{ display: 'grid', gridTemplateColumns: '1fr', width: '100%' }}>
+          <div className="dashboard-filter-group" style={{ width: '100%' }}>
+            <label>Search Doctors</label>
+            <div className="filter-input-wrapper" style={{ width: '100%' }}>
+              <Search size={16} className="filter-input-icon" />
+              <input 
+                type="text" 
+                placeholder="Search by name or specialization..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)}
+                style={{ width: '100%' }} // Ensures input fills wrapper
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -187,13 +215,27 @@ export default function Doctors() {
             <div className="doc-body">
               <div className="info-row"><Mail size={14} className="info-icon"/> {doc.email}</div><div className="info-row"><Phone size={14} className="info-icon"/> {doc.phone}</div>
               <div className="schedule-mini"><div className="schedule-title">Weekly Schedule</div><div className="info-row"><Clock size={14} className="info-icon"/> <span className="schedule-time">Mon - Fri: {doc.scheduleStart?.slice(0,5)} - {doc.scheduleEnd?.slice(0,5)}</span></div></div>
-              {doc.leaves && doc.leaves.length > 0 && ( <div><div className="schedule-title" style={{marginTop: '0.5rem'}}>Upcoming Leaves</div><div className="leaves-list">{doc.leaves.map((leave, idx) => ( <div key={idx} className="leave-tag"><span>{new Date(leave.date).toLocaleDateString()} - {leave.reason}</span><button onClick={() => handleRemoveLeave(leave.id)} style={{border:'none', background:'none', cursor:'pointer', color:'#c2410c'}}><X size={12}/></button></div> ))}</div></div> )}
+              {doc.leaves && doc.leaves.length > 0 && ( 
+                <div>
+                    <div className="schedule-title" style={{marginTop: '0.5rem'}}>Upcoming Leaves</div>
+                    <div className="leaves-list">
+                        {doc.leaves.map((leave, idx) => ( 
+                            <div key={idx} className="leave-tag">
+                                <span>{new Date(leave.date).toLocaleDateString()} - {leave.reason}</span>
+                                {/* Updated to use handleRemoveLeave with the leave object */}
+                                <button onClick={() => handleRemoveLeave(leave)} style={{border:'none', background:'none', cursor:'pointer', color:'#c2410c'}}><X size={12}/></button>
+                            </div> 
+                        ))}
+                    </div>
+                </div> 
+              )}
             </div>
             <div className="doc-footer"><button className="icon-btn" title="Add Leave" onClick={() => handleOpenBlock(doc.id)}><CalendarPlus size={18} /></button><div className="footer-actions"><button className="icon-btn" title="Edit" onClick={() => handleOpenEdit(doc)}><Edit2 size={16}/></button><button className="icon-btn delete" title="Delete" onClick={() => handleDeleteClick(doc)}><Trash2 size={16}/></button></div></div>
           </div>
         ))}
       </div>
 
+      {/* Doctor Modal */}
       {isDoctorModalOpen && (
         <div className="modal-overlay" onClick={() => setIsDoctorModalOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -217,6 +259,7 @@ export default function Doctors() {
         </div>
       )}
 
+      {/* Block/Leave Modal */}
       {isBlockModalOpen && (
         <div className="modal-overlay" onClick={() => setIsBlockModalOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -256,7 +299,6 @@ export default function Doctors() {
                     {errors.reason && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>Please select a reason</span>}
                   </div>
 
-                  {/* --- UPDATED DATE INPUTS FOR RANGE --- */}
                   <div className="form-row-2">
                     <div className="form-group">
                       <label className="form-label">Start Date</label>
@@ -278,12 +320,80 @@ export default function Doctors() {
         </div>
       )}
 
+      {/* --- CONFIRMATION MODAL: DELETE DOCTOR --- */}
       {doctorToDelete && (
         <div className="modal-overlay" onClick={() => setDoctorToDelete(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-             <div className="modal-header"><h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Remove Doctor</h3><button onClick={() => setDoctorToDelete(null)} className="modal-close"><X size={20} /></button></div>
-            <div className="modal-body"><p className="modal-text">Are you sure you want to remove <strong>Dr. {doctorToDelete.lastName}</strong>? This cannot be undone.</p></div>
-            <div className="modal-footer"><button className="btn btn-outline" onClick={() => setDoctorToDelete(null)}>Cancel</button><button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', boxShadow: 'none' }} onClick={confirmDelete}>Remove Permanently</button></div>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            // FIXED: Added height: 'auto' and reduced maxWidth to 350px
+            style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }} 
+          >
+             <div className="modal-header">
+               <h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Remove Doctor</h3>
+               <button onClick={() => setDoctorToDelete(null)} className="modal-close"><X size={20} /></button>
+             </div>
+            <div className="modal-body" style={{ flex: '0 0 auto' }}> {/* Prevent body from stretching */}
+              <p className="modal-text">Are you sure you want to remove <strong>Dr. {doctorToDelete.lastName}</strong>? This cannot be undone.</p>
+            </div>
+            <div className="modal-footer" style={{ flex: '0 0 auto' }}>
+              <button className="btn btn-outline" onClick={() => setDoctorToDelete(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', boxShadow: 'none' }} onClick={confirmDelete}>Remove Permanently</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- CONFIRMATION MODAL: DELETE LEAVE (Updated) --- */}
+      {leaveToDelete && (
+        <div className="modal-overlay" onClick={() => setLeaveToDelete(null)}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            // FIXED: Added height: 'auto' and reduced maxWidth to 350px
+            style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }}
+          >
+             <div className="modal-header">
+               <h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Remove Leave</h3>
+               <button onClick={() => setLeaveToDelete(null)} className="modal-close"><X size={20} /></button>
+             </div>
+            <div className="modal-body" style={{ flex: '0 0 auto' }}> {/* Prevent body from stretching */}
+              <p className="modal-text">
+                Remove the <strong>{leaveToDelete.reason}</strong> entry for <strong>{new Date(leaveToDelete.date).toLocaleDateString()}</strong>?
+              </p>
+            </div>
+            <div className="modal-footer" style={{ flex: '0 0 auto' }}>
+              <button className="btn btn-outline" onClick={() => setLeaveToDelete(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', boxShadow: 'none' }} onClick={confirmRemoveLeave}>Confirm Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- CUSTOM MESSAGE BOX MODAL (Already Correct) --- */}
+      {messageBox.show && (
+        <div className="modal-overlay" onClick={closeMessageBox}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center', padding: '2rem', height: 'auto', minHeight: 'unset' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                {messageBox.type === 'success' ? (
+                    <div style={{ padding: '12px', borderRadius: '50%', background: '#dcfce7' }}>
+                        <CheckCircle size={48} color="#166534" />
+                    </div>
+                ) : (
+                    <div style={{ padding: '12px', borderRadius: '50%', background: '#fee2e2' }}>
+                        <AlertTriangle size={48} color="#991b1b" />
+                    </div>
+                )}
+                
+                <div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-dark)' }}>{messageBox.title}</h3>
+                    <p style={{ color: 'var(--text-light)', margin: 0, fontSize: '0.95rem' }}>{messageBox.message}</p>
+                </div>
+
+                <button className="btn btn-primary" onClick={closeMessageBox} style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}>
+                    OK
+                </button>
+            </div>
           </div>
         </div>
       )}
