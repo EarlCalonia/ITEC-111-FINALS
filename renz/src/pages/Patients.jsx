@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import '../styles/Patients.css';
-// 1. Add CheckCircle and AlertTriangle to imports
 import { Plus, Search, Eye, Edit2, Trash2, FileDown, ChevronLeft, ChevronRight, X, Phone, Mail, Calendar, Activity, CheckCircle, AlertTriangle } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -35,7 +34,7 @@ export default function Patients() {
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', dob: '', status: 'Active' });
   const [errors, setErrors] = useState({});
 
-  // 2. Message Box State
+  // Message Box State
   const [messageBox, setMessageBox] = useState({ show: false, title: '', message: '', type: 'success' });
   const closeMessageBox = () => setMessageBox({ ...messageBox, show: false });
 
@@ -96,7 +95,7 @@ export default function Patients() {
 
   const closeModal = () => { setIsModalOpen(false); setSelectedPatient(null); };
   
-  // 3. Handle Save (With Message Box)
+  // Handle Save
   const handleSavePatient = async (e) => {
     e.preventDefault();
     const newErrors = {};
@@ -122,25 +121,21 @@ export default function Patients() {
       }
       fetchPatients();
       closeModal();
-      
-      // Success Message
       setMessageBox({ show: true, title: 'Success', message: modalMode === 'create' ? 'Patient registered successfully!' : 'Patient record updated!', type: 'success' });
 
     } catch (error) {
       console.error('Error saving patient:', error);
-      // Error Message (Replaced alert)
       setMessageBox({ show: true, title: 'Error', message: 'Failed to save patient. Please check your connection.', type: 'error' });
     }
   };
 
-  // 4. Handle Delete (With Message Box)
+  // Handle Delete
   const handleDeleteConfirm = async () => {
     if (patientToDelete) { 
         try {
             await fetch(`http://localhost:5000/api/patients/${patientToDelete.id}`, { method: 'DELETE' });
             fetchPatients();
             setPatientToDelete(null); 
-            // Success Message
             setMessageBox({ show: true, title: 'Success', message: 'Patient record deleted.', type: 'success' });
         } catch (error) {
             console.error("Error deleting patient:", error);
@@ -204,7 +199,7 @@ export default function Patients() {
       </div>
 
       <div className="dashboard-filters-card">
-        {/* FIXED: Full width single column grid */}
+        {/* Full width search bar */}
         <div className="dashboard-filters-row" style={{ display: 'grid', gridTemplateColumns: '1fr', width: '100%' }}>
           <div className="dashboard-filter-group" style={{ width: '100%' }}>
             <label>Search Patients</label>
@@ -215,7 +210,7 @@ export default function Patients() {
                 placeholder="Search by name, phone, or ID" 
                 value={searchTerm} 
                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} 
-                style={{ width: '100%' }} // Ensures input fills wrapper
+                style={{ width: '100%' }}
               />
             </div>
           </div>
@@ -249,10 +244,7 @@ export default function Patients() {
           <div 
             className="modal-content" 
             onClick={(e) => e.stopPropagation()} 
-            // FIXED: 
-            // 1. maxWidth reduced to 450px (tighter)
-            // 2. height set to 'auto' (removes empty bottom space)
-            // 3. maxHeight set to 90vh (scrolls if screen is small)
+            // Compact & Auto-Height style
             style={{ 
               maxWidth: '450px', 
               width: '95%', 
@@ -266,7 +258,6 @@ export default function Patients() {
               <h3 style={{ fontWeight: 'bold', fontSize: '1.25rem' }}>{modalMode === 'view' ? 'Patient Profile' : modalMode === 'edit' ? 'Edit Patient' : 'New Patient'}</h3><button onClick={closeModal} className="modal-close"><X size={20} /></button>
             </div>
             
-            {/* Body: Allows scrolling if content is too long for small screens */}
             <div className="modal-body" style={{ flex: '1', overflowY: 'auto' }}>
               {modalMode === 'view' && selectedPatient && (
                 <div className="view-details">
@@ -298,8 +289,34 @@ export default function Patients() {
                 </form>
               )}
             </div>
-            {/* Footer: Stays attached to the bottom of the content */}
-            <div className="modal-footer" style={{ flex: '0 0 auto' }}>{modalMode === 'view' ? ( <> <button className="btn btn-outline" onClick={closeModal}>Close</button> <button className="btn btn-primary" onClick={() => openEdit(selectedPatient)}>Edit Record</button> </> ) : ( <> <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button> <button type="submit" form="patient-form" className="btn btn-primary">{modalMode === 'edit' ? 'Save Changes' : 'Create Patient'}</button> </> )}</div>
+            {/* Footer with Button Fixes */}
+            <div className="modal-footer" style={{ flex: '0 0 auto' }}>
+              {modalMode === 'view' ? ( 
+                <> 
+                  <button type="button" className="btn btn-outline" onClick={closeModal}>Close</button> 
+                  <button 
+                    key="edit-btn" 
+                    type="button" 
+                    className="btn btn-primary" 
+                    onClick={() => openEdit(selectedPatient)}
+                  >
+                    Edit Record
+                  </button> 
+                </> 
+              ) : ( 
+                <> 
+                  <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button> 
+                  <button 
+                    key="save-btn" 
+                    type="submit" 
+                    form="patient-form" 
+                    className="btn btn-primary"
+                  >
+                    {modalMode === 'edit' ? 'Save Changes' : 'Create Patient'}
+                  </button> 
+                </> 
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -309,25 +326,16 @@ export default function Patients() {
           <div 
             className="modal-content" 
             onClick={(e) => e.stopPropagation()} 
-            // FIXED: Compact size
             style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }}
           >
-             <div className="modal-header">
-               <h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Delete Patient</h3>
-               <button onClick={() => setPatientToDelete(null)} className="modal-close"><X size={20} /></button>
-             </div>
-            <div className="modal-body" style={{ flex: '0 0 auto' }}>
-              <p className="modal-text">Are you sure you want to delete <strong>{patientToDelete.name}</strong>? This action cannot be undone.</p>
-            </div>
-            <div className="modal-footer" style={{ flex: '0 0 auto' }}>
-              <button className="btn btn-outline" onClick={() => setPatientToDelete(null)}>Cancel</button>
-              <button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', boxShadow: 'none' }} onClick={handleDeleteConfirm}>Delete Permanently</button>
-            </div>
+             <div className="modal-header"><h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Delete Patient</h3><button onClick={() => setPatientToDelete(null)} className="modal-close"><X size={20} /></button></div>
+            <div className="modal-body" style={{ flex: '0 0 auto' }}><p className="modal-text">Are you sure you want to delete <strong>{patientToDelete.name}</strong>? This action cannot be undone.</p></div>
+            <div className="modal-footer" style={{ flex: '0 0 auto' }}><button className="btn btn-outline" onClick={() => setPatientToDelete(null)}>Cancel</button><button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', boxShadow: 'none' }} onClick={handleDeleteConfirm}>Delete Permanently</button></div>
           </div>
         </div>
       )}
 
-      {/* 5. Custom Message Box */}
+      {/* Message Box */}
       {messageBox.show && (
         <div className="modal-overlay" onClick={closeMessageBox}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center', padding: '2rem', height: 'auto', minHeight: 'unset' }}>
