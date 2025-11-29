@@ -56,7 +56,6 @@ export default function Patients() {
 
     } catch (error) {
       console.error('Error fetching data:', error);
-      // Don't crash, just set empty
       if (patientsData.length === 0) setPatientsData([]);
       if (appointmentsData.length === 0) setAppointmentsData([]);
     }
@@ -112,8 +111,18 @@ export default function Patients() {
   const handleSavePatient = async (e) => {
     e.preventDefault();
     const newErrors = {};
+    
+    // Name Validation
     if (!formData.name) newErrors.name = "Patient Name is required";
-    if (!formData.phone) newErrors.phone = "Phone number is required";
+    
+    // PHONE VALIDATION (UPDATED)
+    if (!formData.phone) {
+        newErrors.phone = "Phone number is required";
+    } else if (formData.phone.length !== 11) {
+        newErrors.phone = "Phone must be exactly 11 digits";
+    }
+
+    // DOB Validation
     if (!formData.dob) newErrors.dob = "Date of Birth is required";
 
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
@@ -354,7 +363,27 @@ export default function Patients() {
                 <form id="patient-form" onSubmit={handleSavePatient} className="form-grid">
                   <div className="form-group"><label className="form-label">Full Name</label><input required className="form-control" style={{ borderColor: errors.name ? 'var(--danger)' : 'var(--border)' }} value={formData.name} onChange={e => { setFormData({...formData, name: e.target.value}); setErrors({...errors, name: null}); }} placeholder="e.g. John Doe" />{errors.name && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.name}</span>}</div>
                   <div className="form-row-2">
-                    <div className="form-group"><label className="form-label">Phone Number</label><input required className="form-control" style={{ borderColor: errors.phone ? 'var(--danger)' : 'var(--border)' }} value={formData.phone} onChange={e => { setFormData({...formData, phone: e.target.value}); setErrors({...errors, phone: null}); }} placeholder="555-0000" />{errors.phone && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.phone}</span>}</div>
+                    <div className="form-group"><label className="form-label">Phone Number</label>
+                    
+                    {/* --- FIXED: PHONE INPUT VALIDATION --- */}
+                    <input 
+                      required 
+                      className="form-control" 
+                      style={{ borderColor: errors.phone ? 'var(--danger)' : 'var(--border)' }} 
+                      value={formData.phone} 
+                      onChange={e => { 
+                        // 1. Filter: Allow only Numbers
+                        const val = e.target.value.replace(/\D/g, '');
+                        // 2. Filter: Limit to 11 chars
+                        if (val.length <= 11) {
+                            setFormData({...formData, phone: val}); 
+                            setErrors({...errors, phone: null}); 
+                        }
+                      }} 
+                      placeholder="09123456789" 
+                    />
+                    
+                    {errors.phone && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.phone}</span>}</div>
                     <div className="form-group"><label className="form-label">Email Address</label><input type="email" className="form-control" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="john@example.com" /></div>
                   </div>
                   <div className="form-row-2">
