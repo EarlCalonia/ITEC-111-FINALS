@@ -1,6 +1,6 @@
 /* --- NAVBAR CONTAINER --- */
 .navbar {
-  height: 72px;
+  height: 85px;
   /* RESTORED: Blue Gradient Background */
   background: linear-gradient(90deg, var(--primary-color) 0%, #2563eb 100%);
   color: white;

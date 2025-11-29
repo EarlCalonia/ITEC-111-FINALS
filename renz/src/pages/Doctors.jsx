@@ -21,7 +21,7 @@ export default function Doctors() {
   
   // Delete States
   const [doctorToDelete, setDoctorToDelete] = useState(null);
-  const [leaveToDelete, setLeaveToDelete] = useState(null); // <--- NEW: State for leave deletion
+  const [leaveToDelete, setLeaveToDelete] = useState(null);
   
   const [errors, setErrors] = useState({});
 
@@ -29,14 +29,25 @@ export default function Doctors() {
   const [doctorForm, setDoctorForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: '', scheduleStart: '09:00', scheduleEnd: '17:00' });
   const [blockForm, setBlockForm] = useState({ reason: '', date: '', endDate: '', notes: '' });
 
-  // 1. FETCH DATA
+  // --- 1. FETCH DATA (FIXED) ---
   const fetchDoctors = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/doctors');
+      // Use 127.0.0.1 to avoid localhost resolution issues
+      const res = await fetch('http://127.0.0.1:5000/api/doctors');
+      if (!res.ok) throw new Error('Failed to fetch');
+      
       const data = await res.json();
-      setDoctors(data);
+      
+      // Safety Check: Ensure data is an array before using map/filter
+      if (Array.isArray(data)) {
+        setDoctors(data);
+      } else {
+        console.warn("Received invalid data format for doctors");
+        setDoctors([]);
+      }
     } catch (err) {
       console.error("Error fetching doctors:", err);
+      setDoctors([]); // Set empty array to prevent crash
     }
   };
 
@@ -61,7 +72,7 @@ export default function Doctors() {
 
   const handleDeleteClick = (doc) => { setDoctorToDelete(doc); };
 
-  // 2. SAVE DOCTOR
+  // 2. SAVE DOCTOR (FIXED URL)
   const handleSaveDoctor = async (e) => {
     e.preventDefault();
     const newErrors = {};
@@ -72,19 +83,18 @@ export default function Doctors() {
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     try {
-        if (editingDoctor) {
-            await fetch(`http://localhost:5000/api/doctors/${editingDoctor.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(doctorForm)
-            });
-        } else {
-            await fetch('http://localhost:5000/api/doctors', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(doctorForm)
-            });
-        }
+        const url = editingDoctor 
+            ? `http://127.0.0.1:5000/api/doctors/${editingDoctor.id}`
+            : 'http://127.0.0.1:5000/api/doctors';
+            
+        const method = editingDoctor ? 'PUT' : 'POST';
+
+        await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(doctorForm)
+        });
+
         fetchDoctors();
         setIsDoctorModalOpen(false);
         setMessageBox({ show: true, title: 'Success', message: 'Doctor profile saved.', type: 'success' });
@@ -94,7 +104,7 @@ export default function Doctors() {
     }
   };
 
-  // 3. BLOCK TIME (Add Leave)
+  // 3. BLOCK TIME (FIXED URL)
   const handleOpenBlock = (specificId = '') => { 
     setBlockingDoctorId(specificId ? specificId.toString() : ''); 
     setIsDoctorFixed(!!specificId); 
@@ -122,7 +132,7 @@ export default function Doctors() {
             const day = String(dt.getDate()).padStart(2, '0');
             const formattedDate = `${year}-${month}-${day}`;
 
-            await fetch(`http://localhost:5000/api/doctors/${blockingDoctorId}/leaves`, {
+            await fetch(`http://127.0.0.1:5000/api/doctors/${blockingDoctorId}/leaves`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -143,15 +153,15 @@ export default function Doctors() {
     }
   };
 
-  // 4. REMOVE LEAVE (Updated to use Modal)
+  // 4. REMOVE LEAVE (FIXED URL)
   const handleRemoveLeave = (leave) => {
-    setLeaveToDelete(leave); // Opens the confirmation modal
+    setLeaveToDelete(leave); 
   };
 
   const confirmRemoveLeave = async () => {
     if (leaveToDelete) {
         try {
-            await fetch(`http://localhost:5000/api/doctors/leaves/${leaveToDelete.id}`, { method: 'DELETE' });
+            await fetch(`http://127.0.0.1:5000/api/doctors/leaves/${leaveToDelete.id}`, { method: 'DELETE' });
             fetchDoctors();
             setLeaveToDelete(null);
             setMessageBox({ show: true, title: 'Success', message: 'Leave removed.', type: 'success' });
@@ -162,11 +172,11 @@ export default function Doctors() {
     }
   };
 
-  // 5. DELETE DOCTOR
+  // 5. DELETE DOCTOR (FIXED URL)
   const confirmDelete = async () => {
     if (doctorToDelete) {
         try {
-            await fetch(`http://localhost:5000/api/doctors/${doctorToDelete.id}`, { method: 'DELETE' });
+            await fetch(`http://127.0.0.1:5000/api/doctors/${doctorToDelete.id}`, { method: 'DELETE' });
             fetchDoctors();
             setDoctorToDelete(null);
             setMessageBox({ show: true, title: 'Success', message: 'Doctor deleted.', type: 'success' });
@@ -190,7 +200,6 @@ export default function Doctors() {
       </div>
 
       <div className="dashboard-filters-card">
-        {/* FIXED: Full width single column grid */}
         <div className="dashboard-filters-row" style={{ display: 'grid', gridTemplateColumns: '1fr', width: '100%' }}>
           <div className="dashboard-filter-group" style={{ width: '100%' }}>
             <label>Search Doctors</label>
@@ -201,7 +210,7 @@ export default function Doctors() {
                 placeholder="Search by name or specialization..." 
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)}
-                style={{ width: '100%' }} // Ensures input fills wrapper
+                style={{ width: '100%' }} 
               />
             </div>
           </div>
@@ -222,7 +231,6 @@ export default function Doctors() {
                         {doc.leaves.map((leave, idx) => ( 
                             <div key={idx} className="leave-tag">
                                 <span>{new Date(leave.date).toLocaleDateString()} - {leave.reason}</span>
-                                {/* Updated to use handleRemoveLeave with the leave object */}
                                 <button onClick={() => handleRemoveLeave(leave)} style={{border:'none', background:'none', cursor:'pointer', color:'#c2410c'}}><X size={12}/></button>
                             </div> 
                         ))}
@@ -323,17 +331,12 @@ export default function Doctors() {
       {/* --- CONFIRMATION MODAL: DELETE DOCTOR --- */}
       {doctorToDelete && (
         <div className="modal-overlay" onClick={() => setDoctorToDelete(null)}>
-          <div 
-            className="modal-content" 
-            onClick={(e) => e.stopPropagation()} 
-            // FIXED: Added height: 'auto' and reduced maxWidth to 350px
-            style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }} 
-          >
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }}>
              <div className="modal-header">
                <h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Remove Doctor</h3>
                <button onClick={() => setDoctorToDelete(null)} className="modal-close"><X size={20} /></button>
              </div>
-            <div className="modal-body" style={{ flex: '0 0 auto' }}> {/* Prevent body from stretching */}
+            <div className="modal-body" style={{ flex: '0 0 auto' }}>
               <p className="modal-text">Are you sure you want to remove <strong>Dr. {doctorToDelete.lastName}</strong>? This cannot be undone.</p>
             </div>
             <div className="modal-footer" style={{ flex: '0 0 auto' }}>
@@ -344,20 +347,15 @@ export default function Doctors() {
         </div>
       )}
 
-      {/* --- CONFIRMATION MODAL: DELETE LEAVE (Updated) --- */}
+      {/* --- CONFIRMATION MODAL: DELETE LEAVE --- */}
       {leaveToDelete && (
         <div className="modal-overlay" onClick={() => setLeaveToDelete(null)}>
-          <div 
-            className="modal-content" 
-            onClick={(e) => e.stopPropagation()} 
-            // FIXED: Added height: 'auto' and reduced maxWidth to 350px
-            style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }}
-          >
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }}>
              <div className="modal-header">
                <h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Remove Leave</h3>
                <button onClick={() => setLeaveToDelete(null)} className="modal-close"><X size={20} /></button>
              </div>
-            <div className="modal-body" style={{ flex: '0 0 auto' }}> {/* Prevent body from stretching */}
+            <div className="modal-body" style={{ flex: '0 0 auto' }}>
               <p className="modal-text">
                 Remove the <strong>{leaveToDelete.reason}</strong> entry for <strong>{new Date(leaveToDelete.date).toLocaleDateString()}</strong>?
               </p>
@@ -370,7 +368,7 @@ export default function Doctors() {
         </div>
       )}
 
-      {/* --- CUSTOM MESSAGE BOX MODAL (Already Correct) --- */}
+      {/* --- MESSAGE BOX --- */}
       {messageBox.show && (
         <div className="modal-overlay" onClick={closeMessageBox}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center', padding: '2rem', height: 'auto', minHeight: 'unset' }}>
@@ -384,15 +382,8 @@ export default function Doctors() {
                         <AlertTriangle size={48} color="#991b1b" />
                     </div>
                 )}
-                
-                <div>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-dark)' }}>{messageBox.title}</h3>
-                    <p style={{ color: 'var(--text-light)', margin: 0, fontSize: '0.95rem' }}>{messageBox.message}</p>
-                </div>
-
-                <button className="btn btn-primary" onClick={closeMessageBox} style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}>
-                    OK
-                </button>
+                <div><h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-dark)' }}>{messageBox.title}</h3><p style={{ color: 'var(--text-light)', margin: 0, fontSize: '0.95rem' }}>{messageBox.message}</p></div>
+                <button className="btn btn-primary" onClick={closeMessageBox} style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}>OK</button>
             </div>
           </div>
         </div>

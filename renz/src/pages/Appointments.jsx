@@ -49,21 +49,32 @@ export default function Appointments() {
   // 2. FETCH DATA FROM API
   const fetchAllData = async () => {
     try {
-        const [aptRes, patRes, docRes] = await Promise.all([
-            fetch('http://localhost:5000/api/appointments'),
-            fetch('http://localhost:5000/api/patients'),
-            fetch('http://localhost:5000/api/doctors')
+        // Helper function to safely parse response
+        const safeFetch = async (url) => {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return [];
+                const data = await res.json();
+                return Array.isArray(data) ? data : [];
+            } catch (e) {
+                console.warn(`Failed to fetch ${url}`, e);
+                return [];
+            }
+        };
+
+        // Fetch all in parallel
+        const [aptData, patData, docData] = await Promise.all([
+            safeFetch('http://localhost:5000/api/appointments'),
+            safeFetch('http://localhost:5000/api/patients'),
+            safeFetch('http://localhost:5000/api/doctors')
         ]);
-        
-        const aptData = await aptRes.json();
-        const patData = await patRes.json();
-        const docData = await docRes.json();
 
         setAppointments(aptData);
         setPatientsList(patData);
         setDoctorsList(docData);
+
     } catch (err) {
-        console.error("Error fetching data:", err);
+        console.error("Critical error fetching data:", err);
     }
   };
 

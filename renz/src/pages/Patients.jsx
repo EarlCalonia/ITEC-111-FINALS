@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import '../styles/Patients.css';
-import { Plus, Search, Eye, Edit2, Trash2, FileDown, ChevronLeft, ChevronRight, X, Phone, Mail, Calendar, Activity, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Trash2, FileDown, ChevronLeft, ChevronRight, X, Phone, Mail, Calendar, Activity, CheckCircle, AlertTriangle, Clock, FileText } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -22,6 +22,7 @@ const sortData = (data, sortConfig) => {
 
 export default function Patients() {
   const [patientsData, setPatientsData] = useState([]);
+  const [appointmentsData, setAppointmentsData] = useState([]); // Store appointments for history
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
@@ -38,19 +39,31 @@ export default function Patients() {
   const [messageBox, setMessageBox] = useState({ show: false, title: '', message: '', type: 'success' });
   const closeMessageBox = () => setMessageBox({ ...messageBox, show: false });
 
-  // Fetch Data
-  const fetchPatients = async () => {
+  // --- FETCH DATA (SAFE) ---
+  const fetchData = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/patients');
-      const data = await response.json();
-      setPatientsData(data);
+      // 1. Fetch Patients
+      const patRes = await fetch('http://127.0.0.1:5000/api/patients');
+      const patData = await patRes.json();
+      if (Array.isArray(patData)) setPatientsData(patData);
+      else setPatientsData([]);
+
+      // 2. Fetch Appointments (For History)
+      const aptRes = await fetch('http://127.0.0.1:5000/api/appointments');
+      const aptData = await aptRes.json();
+      if (Array.isArray(aptData)) setAppointmentsData(aptData);
+      else setAppointmentsData([]);
+
     } catch (error) {
-      console.error('Error fetching patients:', error);
+      console.error('Error fetching data:', error);
+      // Don't crash, just set empty
+      if (patientsData.length === 0) setPatientsData([]);
+      if (appointmentsData.length === 0) setAppointmentsData([]);
     }
   };
 
   useEffect(() => {
-    fetchPatients();
+    fetchData();
   }, []);
 
   // Filter & Sort Logic
@@ -106,20 +119,21 @@ export default function Patients() {
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     try {
+      let url = 'http://127.0.0.1:5000/api/patients';
+      let method = 'POST';
+
       if (modalMode === 'edit' && selectedPatient) {
-        await fetch(`http://localhost:5000/api/patients/${selectedPatient.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
-      } else if (modalMode === 'create') {
-        await fetch('http://localhost:5000/api/patients', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
+        url = `http://127.0.0.1:5000/api/patients/${selectedPatient.id}`;
+        method = 'PUT';
       }
-      fetchPatients();
+
+      await fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+      });
+
+      fetchData();
       closeModal();
       setMessageBox({ show: true, title: 'Success', message: modalMode === 'create' ? 'Patient registered successfully!' : 'Patient record updated!', type: 'success' });
 
@@ -133,8 +147,8 @@ export default function Patients() {
   const handleDeleteConfirm = async () => {
     if (patientToDelete) { 
         try {
-            await fetch(`http://localhost:5000/api/patients/${patientToDelete.id}`, { method: 'DELETE' });
-            fetchPatients();
+            await fetch(`http://127.0.0.1:5000/api/patients/${patientToDelete.id}`, { method: 'DELETE' });
+            fetchData();
             setPatientToDelete(null); 
             setMessageBox({ show: true, title: 'Success', message: 'Patient record deleted.', type: 'success' });
         } catch (error) {
@@ -191,6 +205,12 @@ export default function Patients() {
     doc.save('calonia_patients_report.pdf');
   };
 
+  // Get Appointment History for Selected Patient
+  const patientHistory = useMemo(() => {
+    if (!selectedPatient) return [];
+    return appointmentsData.filter(apt => apt.patient_id === selectedPatient.id);
+  }, [selectedPatient, appointmentsData]);
+
   return (
     <div className="patients-page animate-fade-in">
       <div className="page-header">
@@ -199,7 +219,6 @@ export default function Patients() {
       </div>
 
       <div className="dashboard-filters-card">
-        {/* Full width search bar */}
         <div className="dashboard-filters-row" style={{ display: 'grid', gridTemplateColumns: '1fr', width: '100%' }}>
           <div className="dashboard-filter-group" style={{ width: '100%' }}>
             <label>Search Patients</label>
@@ -220,14 +239,30 @@ export default function Patients() {
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="table-container" style={{ border: 'none', borderRadius: 0 }}>
           <table>
-            <thead><tr>{[ { label: 'ID', key: 'id' }, { label: 'Patient Name', key: 'name' }, { label: 'Phone', key: 'phone' }, { label: 'Email', key: 'email' }, { label: 'Age / DOB', key: 'dob' }, { label: 'Last Visit', key: 'lastVisit' }, { label: 'Status', key: 'status' } ].map((col) => ( <th key={col.key} onClick={() => handleSort(col.key)} className="sortable"> {col.label} {sortConfig.key === col.key && <span className="sort-indicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>} </th> ))}<th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+            <thead>
+              <tr>
+                {[ { label: 'ID', key: 'id' }, { label: 'Patient Name', key: 'name' }, { label: 'Phone', key: 'phone' }, { label: 'Status', key: 'status' } ].map((col) => ( 
+                  <th key={col.key} onClick={() => handleSort(col.key)} className="sortable"> 
+                    {col.label} {sortConfig.key === col.key && <span className="sort-indicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>} 
+                  </th> 
+                ))}
+                <th style={{ textAlign: 'right' }}>Actions</th>
+              </tr>
+            </thead>
             <tbody>
-              {paginatedPatients.length === 0 ? ( <tr><td colSpan="8" style={{textAlign: 'center', padding: '3rem', color: '#6b7280'}}>No patients found.</td></tr> ) : paginatedPatients.map((p) => (
+              {paginatedPatients.length === 0 ? ( <tr><td colSpan="5" style={{textAlign: 'center', padding: '3rem', color: '#6b7280'}}>No patients found.</td></tr> ) : paginatedPatients.map((p) => (
                 <tr key={p.id}>
-                  <td style={{ color: '#6b7280' }}>#{p.id}</td><td style={{ fontWeight: '600', color: 'var(--text-dark)' }}>{p.name}</td><td>{p.phone}</td><td style={{ color: 'var(--text-light)' }}>{p.email}</td>
-                  <td><div className="age-dob"><strong>Age: {computeAge(p.dob)}</strong><span style={{fontSize: '0.75rem', color: 'var(--text-light)'}}>Born {formatDOB(p.dob)}</span></div></td>
-                  <td>{p.lastVisit}</td><td><span className={`badge ${p.status === 'Active' ? 'badge-green' : p.status === 'Pending' ? 'badge-blue' : 'badge-completed'}`}>{p.status}</span></td>
-                  <td style={{ textAlign: 'right' }}><div className="action-group"><button className="icon-btn view" onClick={() => openView(p)} title="View Details"><Eye size={18} /></button><button className="icon-btn edit" onClick={() => openEdit(p)} title="Edit"><Edit2 size={18} /></button><button className="icon-btn delete" onClick={() => setPatientToDelete(p)} title="Delete"><Trash2 size={18} /></button></div></td>
+                  <td style={{ color: '#6b7280' }}>#{p.id}</td>
+                  <td style={{ fontWeight: '600', color: 'var(--text-dark)' }}>{p.name}</td>
+                  <td>{p.phone}</td>
+                  <td><span className={`badge ${p.status === 'Active' ? 'badge-green' : p.status === 'Pending' ? 'badge-blue' : 'badge-completed'}`}>{p.status}</span></td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div className="action-group">
+                      <button className="icon-btn view" onClick={() => openView(p)} title="View Details"><Eye size={18} /></button>
+                      <button className="icon-btn edit" onClick={() => openEdit(p)} title="Edit"><Edit2 size={18} /></button>
+                      <button className="icon-btn delete" onClick={() => setPatientToDelete(p)} title="Delete"><Trash2 size={18} /></button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -244,9 +279,8 @@ export default function Patients() {
           <div 
             className="modal-content" 
             onClick={(e) => e.stopPropagation()} 
-            // Compact & Auto-Height style
             style={{ 
-              maxWidth: '450px', 
+              maxWidth: modalMode === 'view' ? '600px' : '450px', // Wider for view mode to fit history 
               width: '95%', 
               height: 'auto', 
               maxHeight: '90vh',
@@ -261,20 +295,61 @@ export default function Patients() {
             <div className="modal-body" style={{ flex: '1', overflowY: 'auto' }}>
               {modalMode === 'view' && selectedPatient && (
                 <div className="view-details">
+                  {/* Header Profile Info */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9' }}>
                     <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#eff6ff', color: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: '700', border: '2px solid white', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>{getInitials(selectedPatient.name)}</div>
                     <div><h2 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-dark)' }}>{selectedPatient.name}</h2><div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}><span className={`badge ${selectedPatient.status === 'Active' ? 'badge-green' : 'badge-blue'}`}>{selectedPatient.status}</span><span style={{ fontSize: '0.8rem', color: 'var(--text-light)', display:'flex', alignItems:'center' }}>#{selectedPatient.id}</span></div></div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '0.5rem' }}>
+
+                  {/* Profile Details Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1rem' }}>
                     <div><div className="detail-label"><Calendar size={14} style={{display:'inline', marginRight:'4px'}}/> Date of Birth</div><div className="detail-value">{formatDOB(selectedPatient.dob)}</div><div style={{fontSize: '0.8rem', color: 'var(--text-light)'}}>{computeAge(selectedPatient.dob)} years old</div></div>
-                    <div><div className="detail-label"><Activity size={14} style={{display:'inline', marginRight:'4px'}}/> Last Visit</div><div className="detail-value">{selectedPatient.lastVisit}</div><div style={{fontSize: '0.8rem', color: 'var(--text-light)'}}>General Checkup</div></div>
+                    <div><div className="detail-label"><Activity size={14} style={{display:'inline', marginRight:'4px'}}/> Last Visit</div><div className="detail-value">{selectedPatient.lastVisit || 'N/A'}</div><div style={{fontSize: '0.8rem', color: 'var(--text-light)'}}>General Checkup</div></div>
                   </div>
-                  <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', marginTop: '0.5rem' }}>
+
+                  {/* Contact Info */}
+                  <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', marginTop: '1rem' }}>
                     <div className="detail-label" style={{marginBottom:'0.5rem'}}>Contact Details</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><Phone size={16} color="var(--text-light)"/> <span>{selectedPatient.phone}</span></div><div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><Mail size={16} color="var(--text-light)"/> <span>{selectedPatient.email}</span></div></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}><div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><Phone size={16} color="var(--text-light)"/> <span>{selectedPatient.phone}</span></div><div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}><Mail size={16} color="var(--text-light)"/> <span>{selectedPatient.email || 'N/A'}</span></div></div>
+                  </div>
+
+                  {/* Appointment History Table */}
+                  <div style={{ marginTop: '1.5rem' }}>
+                    <div className="detail-label" style={{ marginBottom: '0.8rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>Appointment History</div>
+                    {patientHistory.length > 0 ? (
+                      <div className="table-container" style={{ border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.85rem' }}>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th style={{ padding: '0.5rem', background: '#f8fafc' }}>Date</th>
+                              <th style={{ padding: '0.5rem', background: '#f8fafc' }}>Time</th>
+                              <th style={{ padding: '0.5rem', background: '#f8fafc' }}>Doctor</th>
+                              <th style={{ padding: '0.5rem', background: '#f8fafc' }}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {patientHistory.map((apt) => (
+                              <tr key={apt.id}>
+                                <td style={{ padding: '0.5rem' }}>{apt.date}</td>
+                                <td style={{ padding: '0.5rem' }}>{apt.time}</td>
+                                <td style={{ padding: '0.5rem' }}>{apt.doc}</td>
+                                <td style={{ padding: '0.5rem' }}>
+                                  <span className={`badge ${apt.status === 'Completed' ? 'badge-completed' : apt.status === 'Confirmed' ? 'badge-green' : apt.status === 'Cancelled' ? 'badge-red' : 'badge-blue'}`} style={{ fontSize: '0.7rem', padding: '2px 6px' }}>
+                                    {apt.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: '0.85rem', color: '#94a3b8', fontStyle: 'italic' }}>No appointment history found.</p>
+                    )}
                   </div>
                 </div>
               )}
+
               {(modalMode === 'edit' || modalMode === 'create') && (
                 <form id="patient-form" onSubmit={handleSavePatient} className="form-grid">
                   <div className="form-group"><label className="form-label">Full Name</label><input required className="form-control" style={{ borderColor: errors.name ? 'var(--danger)' : 'var(--border)' }} value={formData.name} onChange={e => { setFormData({...formData, name: e.target.value}); setErrors({...errors, name: null}); }} placeholder="e.g. John Doe" />{errors.name && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.name}</span>}</div>
@@ -289,31 +364,16 @@ export default function Patients() {
                 </form>
               )}
             </div>
-            {/* Footer with Button Fixes */}
             <div className="modal-footer" style={{ flex: '0 0 auto' }}>
               {modalMode === 'view' ? ( 
                 <> 
                   <button type="button" className="btn btn-outline" onClick={closeModal}>Close</button> 
-                  <button 
-                    key="edit-btn" 
-                    type="button" 
-                    className="btn btn-primary" 
-                    onClick={() => openEdit(selectedPatient)}
-                  >
-                    Edit Record
-                  </button> 
+                  <button key="edit-btn" type="button" className="btn btn-primary" onClick={() => openEdit(selectedPatient)}>Edit Record</button> 
                 </> 
               ) : ( 
                 <> 
                   <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button> 
-                  <button 
-                    key="save-btn" 
-                    type="submit" 
-                    form="patient-form" 
-                    className="btn btn-primary"
-                  >
-                    {modalMode === 'edit' ? 'Save Changes' : 'Create Patient'}
-                  </button> 
+                  <button key="save-btn" type="submit" form="patient-form" className="btn btn-primary">{modalMode === 'edit' ? 'Save Changes' : 'Create Patient'}</button> 
                 </> 
               )}
             </div>
@@ -323,11 +383,7 @@ export default function Patients() {
 
       {patientToDelete && (
         <div className="modal-overlay" onClick={() => setPatientToDelete(null)}>
-          <div 
-            className="modal-content" 
-            onClick={(e) => e.stopPropagation()} 
-            style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }}
-          >
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '350px', height: 'auto', display: 'flex', flexDirection: 'column' }}>
              <div className="modal-header"><h3 style={{ fontWeight: 'bold', color: 'var(--danger)' }}>Delete Patient</h3><button onClick={() => setPatientToDelete(null)} className="modal-close"><X size={20} /></button></div>
             <div className="modal-body" style={{ flex: '0 0 auto' }}><p className="modal-text">Are you sure you want to delete <strong>{patientToDelete.name}</strong>? This action cannot be undone.</p></div>
             <div className="modal-footer" style={{ flex: '0 0 auto' }}><button className="btn btn-outline" onClick={() => setPatientToDelete(null)}>Cancel</button><button className="btn btn-primary" style={{ backgroundColor: 'var(--danger)', boxShadow: 'none' }} onClick={handleDeleteConfirm}>Delete Permanently</button></div>
@@ -335,29 +391,13 @@ export default function Patients() {
         </div>
       )}
 
-      {/* Message Box */}
       {messageBox.show && (
         <div className="modal-overlay" onClick={closeMessageBox}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center', padding: '2rem', height: 'auto', minHeight: 'unset' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                {messageBox.type === 'success' ? (
-                    <div style={{ padding: '12px', borderRadius: '50%', background: '#dcfce7' }}>
-                        <CheckCircle size={48} color="#166534" />
-                    </div>
-                ) : (
-                    <div style={{ padding: '12px', borderRadius: '50%', background: '#fee2e2' }}>
-                        <AlertTriangle size={48} color="#991b1b" />
-                    </div>
-                )}
-                
-                <div>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-dark)' }}>{messageBox.title}</h3>
-                    <p style={{ color: 'var(--text-light)', margin: 0, fontSize: '0.95rem' }}>{messageBox.message}</p>
-                </div>
-
-                <button className="btn btn-primary" onClick={closeMessageBox} style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}>
-                    OK
-                </button>
+                {messageBox.type === 'success' ? (<div style={{ padding: '12px', borderRadius: '50%', background: '#dcfce7' }}><CheckCircle size={48} color="#166534" /></div>) : (<div style={{ padding: '12px', borderRadius: '50%', background: '#fee2e2' }}><AlertTriangle size={48} color="#991b1b" /></div>)}
+                <div><h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 0.5rem 0', color: 'var(--text-dark)' }}>{messageBox.title}</h3><p style={{ color: 'var(--text-light)', margin: 0, fontSize: '0.95rem' }}>{messageBox.message}</p></div>
+                <button className="btn btn-primary" onClick={closeMessageBox} style={{ marginTop: '1rem', width: '100%', justifyContent: 'center' }}>OK</button>
             </div>
           </div>
         </div>

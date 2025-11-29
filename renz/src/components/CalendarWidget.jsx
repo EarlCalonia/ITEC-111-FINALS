@@ -12,11 +12,13 @@ export default function CalendarWidget() {
   const [apptDates, setApptDates] = useState([]); // State to store fetched appointment dates
   const [loading, setLoading] = useState(true);
   
-  // --- FETCH APPOINTMENT DATES ---
+  // --- FETCH APPOINTMENT DATES (FIXED) ---
   useEffect(() => {
     const fetchApptDates = async () => {
         try {
-            const res = await fetch('http://localhost:5000/api/dashboard/summary');
+            // Direct IP
+            const res = await fetch('http://127.0.0.1:5000/api/dashboard/summary');
+            if (!res.ok) return;
             const data = await res.json();
             setApptDates(data.apptDates || []);
             setLoading(false);
@@ -50,7 +52,6 @@ export default function CalendarWidget() {
   };
 
   const getDailyStats = (day) => { 
-    // Format the date for lookup (YYYY-MM-DD)
     const year = currentMonth.getFullYear();
     const month = String(currentMonth.getMonth() + 1).padStart(2, '0');
     const dayStr = String(day).padStart(2, '0');
