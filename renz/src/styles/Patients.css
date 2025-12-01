@@ -31,6 +31,7 @@ th.sortable:hover {
 
 .action-group { 
   display: flex; 
+  /* FIX: Ensure buttons are pushed to the right */
   justify-content: flex-end; 
   gap: 8px; 
 }

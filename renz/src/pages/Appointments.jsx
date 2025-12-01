@@ -318,13 +318,9 @@ export default function Appointments() {
         <div className="table-container" style={{ borderRadius: 0, border: 'none' }}>
           <table>
             <thead>
+              {/* FIX: Collapsed the <th> elements onto a single line to remove unwanted whitespace text nodes */}
               <tr>
-                <th style={{minWidth: '90px', paddingLeft: '1.25rem'}}>Time</th>
-                <th style={{minWidth: '140px', width: '25%'}}>Patient</th> {/* Rebalanced Width */}
-                <th style={{minWidth: '160px', width: '30%'}}>Visit Info</th> {/* Rebalanced Width */}
-                <th style={{minWidth: '120px', width: '20%'}}>Doctor</th>  {/* Rebalanced Width */}
-                <th style={{minWidth: '100px'}}>Status</th>
-                <th style={{textAlign:'right', paddingRight: '1.5rem'}}>ACTIONS</th>
+                <th style={{minWidth: '90px', paddingLeft: '1.25rem'}}>Time</th><th style={{minWidth: '140px', width: '25%'}}>Patient</th><th style={{minWidth: '160px', width: '20%'}}>Visit Info</th><th style={{minWidth: '120px', width: '15%'}}>Doctor</th><th style={{minWidth: '100px'}}>Status</th><th className="col-actions">ACTIONS</th>
               </tr>
             </thead>
             <tbody>
@@ -335,8 +331,10 @@ export default function Appointments() {
                   <td><div style={{fontWeight: '500', fontSize: '0.9rem'}}>{apt.type}</div><div style={{fontSize: '0.8rem', color: 'var(--text-light)', display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px', lineHeight: '1.3'}}><FileText size={12} style={{marginTop:'2px', flexShrink: 0}}/> <span>{apt.notes}</span></div></td>
                   <td style={{color: 'var(--text-dark)', fontWeight: '500', whiteSpace: 'nowrap'}}>{apt.doc}</td>
                   <td><span className={`badge ${apt.status === 'Confirmed' ? 'badge-green' : apt.status === 'Pending' ? 'badge-blue' : 'badge-completed'}`}>{apt.status}</span></td>
-                  <td style={{textAlign: 'right', paddingRight: '1.5rem'}}>
-                    <div style={{display: 'flex', gap: '8px', justifyContent: 'flex-end'}}>
+                  
+                  {/* Applied col-actions class for vertical and horizontal centering */}
+                  <td className="col-actions">
+                    <div className="action-group">
                       <button className="icon-btn view" title="View Details" onClick={() => handleView(apt)}><Eye size={18}/></button>
                       <button className="icon-btn edit" title={isEditLocked(apt.status) ? "Cannot edit locked appointment" : "Reschedule"} onClick={() => handleReschedule(apt)} disabled={isEditLocked(apt.status)} style={{ opacity: isEditLocked(apt.status) ? 0.3 : 1, cursor: isEditLocked(apt.status) ? 'not-allowed' : 'pointer'}}><CalendarIcon size={18}/></button>
                       <button className="icon-btn delete" title={apt.status === 'Completed' ? "Cannot cancel completed appointment" : "Cancel"} onClick={() => handleCancelClick(apt)} disabled={apt.status === 'Completed'} style={{ opacity: apt.status === 'Completed' ? 0.3 : 1, cursor: apt.status === 'Completed' ? 'not-allowed' : 'pointer',}}><X size={18}/></button>
@@ -524,6 +522,7 @@ export default function Appointments() {
                                       <div 
                                           key={type} 
                                           className="patient-dropdown-item" 
+                                          // Use onMouseDown to prevent onBlur from firing first
                                           onMouseDown={() => { 
                                               setFormData({...formData, type: type}); 
                                               setIsTypeDropdownOpen(false); 

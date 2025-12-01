@@ -133,6 +133,19 @@ td { padding: 1rem 0.75rem; border-top: 1px solid var(--border); font-size: 0.9r
 tr:nth-child(even) td { background-color: #f8fafc; }
 tr:hover td { background-color: #f1f5f9; }
 
+/* FIX: Dedicated class for the Actions column, applying your exact developer tool changes */
+.col-actions {
+    text-align: center !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    
+    /* These properties ensure vertical and horizontal centering */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
 /* --- 10. VIEW DETAILS --- */
 .view-details { display: flex; flex-direction: column; gap: 1.25rem; }
 .detail-group { border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem; }

@@ -255,8 +255,8 @@ export default function Patients() {
                     {col.label} {sortConfig.key === col.key && <span className="sort-indicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>} 
                   </th> 
                 ))}
-                {/* FIX: Removed right alignment and reduced padding for better visual spacing */}
-                <th style={{ paddingRight: '1rem' }}>Actions</th> 
+                {/* FIX: Applied new CSS class for consistent right alignment in header */}
+                <th className="col-actions">Actions</th> 
               </tr>
             </thead>
             <tbody>
@@ -267,8 +267,8 @@ export default function Patients() {
                   <td>{p.phone}</td>
                   <td><span className={`badge ${p.status === 'Active' ? 'badge-green' : p.status === 'Pending' ? 'badge-blue' : 'badge-completed'}`}>{p.status}</span></td>
                   
-                  {/* FIX: Adjusted padding in the data cell to align actions closer to content */}
-                  <td style={{ textAlign: 'right', paddingRight: '1.25rem' }}>
+                  {/* FIX: Applied new CSS class for consistent right alignment in data cell */}
+                  <td className="col-actions">
                     <div className="action-group" style={{ justifyContent: 'flex-end' }}>
                       <button className="icon-btn view" onClick={() => openView(p)} title="View Details"><Eye size={18} /></button>
                       <button className="icon-btn edit" onClick={() => openEdit(p)} title="Edit"><Edit2 size={18} /></button>
@@ -310,7 +310,7 @@ export default function Patients() {
                   {/* Header Profile Info */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingBottom: '1rem', borderBottom: '1px solid #f1f5f9' }}>
                     <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: '#eff6ff', color: 'var(--primary-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', fontWeight: '700', border: '2px solid white', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>{getInitials(selectedPatient.name)}</div>
-                    <div><h2 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-dark)' }}>{selectedPatient.name}</h2><div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}><span className={`badge ${selectedPatient.status === 'Active' ? 'badge-green' : 'badge-blue'}`}>{selectedPatient.status}</span><span style={{ fontSize: '0.8rem', color: 'var(--text-light)', display:'flex', alignItems:'center' }}>#{selectedPatient.id}</span></div></div>
+                    <div><h2 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-dark)' }}>{selectedPatient.name}</h2><div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}><span className={`badge ${selectedPatient.status === 'Active' ? 'badge-green' : 'badge-blue'}`}>{selectedPatient.status}</span><span style={{ fontSize: '0.8rem', color: 'var(--text-light)'}}>{selectedPatient.id}</span></div></div>
                   </div>
 
                   {/* Profile Details Grid */}
