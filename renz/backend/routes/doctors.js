@@ -26,7 +26,7 @@ module.exports.getDailyAppointments = getDailyAppointments;
 // GET all doctors (with their leaves)
 router.get('/', (req, res) => {
     const sqlDocs = "SELECT * FROM doctors ORDER BY id DESC";
-    const sqlLeaves = "SELECT * FROM doctor_leaves";
+    const sqlLeaves = "SELECT * FROM doctor_leaves WHERE leave_date >= CURDATE()";
 
     db.query(sqlDocs, (err, doctors) => {
         if (err) return res.status(500).json(err);

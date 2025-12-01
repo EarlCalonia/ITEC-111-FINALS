@@ -1,6 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import '../styles/Doctors.css';
-import { Plus, Edit2, Trash2, X, Search, Phone, Mail, Clock, ShieldAlert, CalendarPlus, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Search, Phone, Mail, Clock, ShieldAlert, CalendarPlus, CheckCircle, AlertTriangle, ChevronDown } from 'lucide-react';
+
+// HELPER FUNCTION: Get today's date in YYYY-MM-DD format for comparison
+const getTodayString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function Doctors() {
   const [doctors, setDoctors] = useState([]);
@@ -29,8 +38,30 @@ export default function Doctors() {
   const [doctorForm, setDoctorForm] = useState({ firstName: '', lastName: '', email: '', phone: '', role: '', scheduleStart: '09:00', scheduleEnd: '17:00' });
   const [blockForm, setBlockForm] = useState({ reason: '', date: '', endDate: '', notes: '' });
 
+  // NEW STATE for Custom Specialization Dropdown
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  
+  // NEW: Memoize unique specializations from existing doctors
+  const uniqueRoles = useMemo(() => {
+    const roles = new Set();
+    doctors.forEach(doc => {
+      if (doc.role) {
+        roles.add(doc.role);
+      }
+    });
+    return Array.from(roles);
+  }, [doctors]);
+
+  // Filtered Roles (for custom dropdown search)
+  const filteredRoles = useMemo(() => {
+    if (!doctorForm.role) return uniqueRoles;
+    const term = doctorForm.role.toLowerCase();
+    return uniqueRoles.filter(role => role.toLowerCase().includes(term));
+  }, [uniqueRoles, doctorForm.role]);
+
   // --- 1. FETCH DATA (FIXED) ---
   const fetchDoctors = async () => {
+// ... (omitted fetchDoctors logic)
     try {
       // Use 127.0.0.1 to avoid localhost resolution issues
       const res = await fetch('http://127.0.0.1:5000/api/doctors');
@@ -74,11 +105,18 @@ export default function Doctors() {
 
   // 2. SAVE DOCTOR (FIXED URL)
   const handleSaveDoctor = async (e) => {
+// ... (omitted handleSaveDoctor logic)
     e.preventDefault();
     const newErrors = {};
     if (!doctorForm.firstName) newErrors.firstName = "First Name is required";
     if (!doctorForm.lastName) newErrors.lastName = "Last Name is required";
     if (!doctorForm.email) newErrors.email = "Email is required";
+    
+    // NEW: Robust phone validation for length and content
+    // We check if the input is empty OR if it's not exactly 11 digits OR if it contains non-digits
+    if (!doctorForm.phone || doctorForm.phone.length !== 11 || !/^\d{11}$/.test(doctorForm.phone)) {
+        newErrors.phone = "Phone must be exactly 11 numeric digits";
+    }
 
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
@@ -106,6 +144,7 @@ export default function Doctors() {
 
   // 3. BLOCK TIME (FIXED URL)
   const handleOpenBlock = (specificId = '') => { 
+// ... (omitted handleOpenBlock logic)
     setBlockingDoctorId(specificId ? specificId.toString() : ''); 
     setIsDoctorFixed(!!specificId); 
     setBlockForm({ reason: '', date: '', endDate: '', notes: '' }); 
@@ -114,15 +153,30 @@ export default function Doctors() {
   };
   
   const handleSaveBlock = async (e) => {
+// ... (omitted handleSaveBlock logic)
     e.preventDefault();
     const newErrors = {};
+    const todayStr = getTodayString(); // Get today's date string (YYYY-MM-DD)
+
     if (!blockingDoctorId) newErrors.doctor = "Please select a doctor";
     if (!blockForm.reason) newErrors.reason = "Please select a reason";
     if (!blockForm.date) newErrors.date = "Start Date is required";
 
+    // FIX: Add validation to prevent selecting past dates
+    if (blockForm.date && blockForm.date < todayStr) {
+        newErrors.date = "Start Date cannot be in the past.";
+    }
+
+    // FIX: Add validation to ensure end date is not before start date
+    if (blockForm.endDate && blockForm.endDate < blockForm.date) {
+        newErrors.endDate = "End Date cannot be before Start Date.";
+    }
+    // END FIX
+
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     try {
+        // We use Date objects here only for iteration, validation is done above via string comparison
         const start = new Date(blockForm.date);
         const end = blockForm.endDate ? new Date(blockForm.endDate) : new Date(blockForm.date);
         
@@ -155,10 +209,12 @@ export default function Doctors() {
 
   // 4. REMOVE LEAVE (FIXED URL)
   const handleRemoveLeave = (leave) => {
+// ... (omitted handleRemoveLeave logic)
     setLeaveToDelete(leave); 
   };
 
   const confirmRemoveLeave = async () => {
+// ... (omitted confirmRemoveLeave logic)
     if (leaveToDelete) {
         try {
             await fetch(`http://127.0.0.1:5000/api/doctors/leaves/${leaveToDelete.id}`, { method: 'DELETE' });
@@ -174,6 +230,7 @@ export default function Doctors() {
 
   // 5. DELETE DOCTOR (FIXED URL)
   const confirmDelete = async () => {
+// ... (omitted confirmDelete logic)
     if (doctorToDelete) {
         try {
             await fetch(`http://127.0.0.1:5000/api/doctors/${doctorToDelete.id}`, { method: 'DELETE' });
@@ -256,8 +313,78 @@ export default function Doctors() {
                     <div className="form-group"><label className="form-label">Last Name</label><input className="form-control" placeholder="e.g. Doe" style={{ borderColor: errors.lastName ? 'var(--danger)' : 'var(--border)' }} value={doctorForm.lastName} onChange={e => { setDoctorForm({...doctorForm, lastName: e.target.value}); setErrors({...errors, lastName: null}); }}/>{errors.lastName && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.lastName}</span>}</div>
                   </div>
                   <div className="form-group"><label className="form-label">Email</label><input required type="email" className="form-control" placeholder="doctor@calonia.com" style={{ borderColor: errors.email ? 'var(--danger)' : 'var(--border)' }} value={doctorForm.email} onChange={e => { setDoctorForm({...doctorForm, email: e.target.value}); setErrors({...errors, email: null}); }}/>{errors.email && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.email}</span>}</div>
-                  <div className="form-group"><label className="form-label">Phone</label><input required className="form-control" placeholder="555-0101" value={doctorForm.phone} onChange={e => setDoctorForm({...doctorForm, phone: e.target.value})}/></div>
-                  <div className="form-group"><label className="form-label">Specialization</label><input className="form-control" style={{ borderColor: errors.role ? 'var(--danger)' : 'var(--border)' }} placeholder="e.g. General Practitioner" value={doctorForm.role} onChange={e => { setDoctorForm({...doctorForm, role: e.target.value}); setErrors({...errors, role: null}); }}/>{errors.role && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.role}</span>}</div>
+                  
+                  {/* Phone Number Input Logic */}
+                  <div className="form-group">
+                    <label className="form-label">Phone</label>
+                    <input 
+                      required 
+                      type="tel" 
+                      className="form-control" 
+                      placeholder="09123456789 (11 digits)" 
+                      style={{ borderColor: errors.phone ? 'var(--danger)' : 'var(--border)' }}
+                      value={doctorForm.phone} 
+                      onChange={e => { 
+                        // 1. Filter: Allow only Numbers
+                        const val = e.target.value.replace(/\D/g, '');
+                        // 2. Filter: Limit to 11 chars
+                        if (val.length <= 11) {
+                          setDoctorForm({...doctorForm, phone: val});
+                          setErrors({...errors, phone: null}); // Clear error on successful input change
+                        }
+                      }}
+                    />
+                    {errors.phone && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.phone}</span>}
+                  </div>
+                  
+                  {/* UPDATED: Specialization Input with Datalist */}
+                  <div className="form-group">
+                    <label className="form-label">Specialization</label>
+                    <div style={{position: 'relative'}}>
+                        <input 
+                          className="form-control" 
+                          style={{ borderColor: errors.role ? 'var(--danger)' : 'var(--border)' }} 
+                          placeholder="e.g. General Practitioner or type new" 
+                          value={doctorForm.role} 
+                          onChange={e => { 
+                            setDoctorForm({...doctorForm, role: e.target.value}); 
+                            setErrors({...errors, role: null}); 
+                            setIsRoleDropdownOpen(true);
+                          }}
+                          onFocus={() => setIsRoleDropdownOpen(true)}
+                          // Close dropdown with a slight delay
+                          onBlur={() => setTimeout(() => setIsRoleDropdownOpen(false), 200)}
+                        />
+                        <ChevronDown size={16} style={{position:'absolute', right:'12px', top:'50%', transform:'translateY(-50%)', color:'var(--text-light)', pointerEvents:'none'}}/>
+                        
+                        {/* Custom Dropdown List based on Patient dropdown design */}
+                        {isRoleDropdownOpen && filteredRoles.length > 0 && (
+                            <div className="patient-dropdown-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: '4px' }}>
+                                {filteredRoles.map((role) => (
+                                    <div 
+                                        key={role} 
+                                        className="patient-dropdown-item" 
+                                        // Use onMouseDown to prevent onBlur from firing first
+                                        onMouseDown={() => { 
+                                            setDoctorForm({...doctorForm, role: role}); 
+                                            setIsRoleDropdownOpen(false); 
+                                        }}
+                                    >
+                                        {role}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {isRoleDropdownOpen && filteredRoles.length === 0 && doctorForm.role && (
+                             <div className="patient-dropdown-list" style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50, marginTop: '4px' }}>
+                                 <div className="patient-dropdown-empty">No matching roles. Type to create new.</div>
+                             </div>
+                        )}
+                    </div>
+                    {errors.role && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.role}</span>}
+                  </div>
+                  {/* END UPDATED */}
+                  
                   <div className="form-row-2"><div className="form-group"><label className="form-label">Shift Start</label><input type="time" className="form-control" value={doctorForm.scheduleStart} onChange={e => setDoctorForm({...doctorForm, scheduleStart: e.target.value})}/></div><div className="form-group"><label className="form-label">Shift End</label><input type="time" className="form-control" value={doctorForm.scheduleEnd} onChange={e => setDoctorForm({...doctorForm, scheduleEnd: e.target.value})}/></div></div>
                 </div>
               </div>
@@ -268,6 +395,7 @@ export default function Doctors() {
       )}
 
       {/* Block/Leave Modal */}
+// ... (omitted Block/Leave Modal and Confirmation Modals - no changes here)
       {isBlockModalOpen && (
         <div className="modal-overlay" onClick={() => setIsBlockModalOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -310,12 +438,28 @@ export default function Doctors() {
                   <div className="form-row-2">
                     <div className="form-group">
                       <label className="form-label">Start Date</label>
-                      <input required type="date" className="form-control" style={{ borderColor: errors.date ? 'var(--danger)' : 'var(--border)' }} value={blockForm.date} onChange={e => { setBlockForm({...blockForm, date: e.target.value}); setErrors({...errors, date: null}); }}/>
+                      <input 
+                        required 
+                        type="date" 
+                        className="form-control" 
+                        style={{ borderColor: errors.date ? 'var(--danger)' : 'var(--border)' }} 
+                        value={blockForm.date} 
+                        onChange={e => { setBlockForm({...blockForm, date: e.target.value}); setErrors({...errors, date: null}); }}
+                        min={getTodayString()} // Optional: adds visual min limit, but JS validation is stronger
+                      />
                       {errors.date && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.date}</span>}
                     </div>
                     <div className="form-group">
                       <label className="form-label">End Date (Optional)</label>
-                      <input type="date" className="form-control" value={blockForm.endDate} onChange={e => setBlockForm({...blockForm, endDate: e.target.value})} placeholder="Same as start" min={blockForm.date} />
+                      <input 
+                        type="date" 
+                        className="form-control" 
+                        value={blockForm.endDate} 
+                        onChange={e => { setBlockForm({...blockForm, endDate: e.target.value}); setErrors({...errors, endDate: null}); }} 
+                        placeholder="Same as start" 
+                        min={blockForm.date || getTodayString()}
+                      />
+                      {errors.endDate && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.endDate}</span>}
                     </div>
                   </div>
 

@@ -66,12 +66,14 @@ const getTodaySchedule = (date) => {
     });
 };
 
-// Helper 4: Get simple list of doctors
+// Helper 4: Get simple list of doctors (UPDATED to get more data)
 const getDoctorStatus = () => {
     return new Promise((resolve, reject) => {
         const sql = `
-            SELECT d.first_name, d.last_name, 
-            (SELECT COUNT(a.id) FROM appointments a WHERE a.doctor_id = d.id AND DATE(a.date) = CURDATE()) AS daily_count
+            SELECT 
+                d.id, d.first_name, d.last_name, 
+            (SELECT MIN(a.time) FROM appointments a WHERE a.doctor_id = d.id AND DATE(a.date) = CURDATE() AND a.status != 'Cancelled' AND a.status != 'Completed') AS next_appt_time,
+            (SELECT COUNT(a.id) FROM appointments a WHERE a.doctor_id = d.id AND DATE(a.date) = CURDATE() AND a.status != 'Cancelled') AS daily_count
             FROM doctors d
         `;
         db.query(sql, (err, results) => {
@@ -79,10 +81,12 @@ const getDoctorStatus = () => {
             if (!results) return resolve([]);
 
             const statusData = results.map(doc => ({
+                id: doc.id, // KEEP ID for matching with leaves later
                 name: `Dr. ${doc.last_name}`,
+                dailyCount: doc.daily_count || 0,
+                // Initial status based only on appointments
                 status: doc.daily_count > 0 ? 'Busy' : 'Available',
-                dailyCount: doc.daily_count,
-                next: '10:15 AM', 
+                next: doc.next_appt_time || 'N/A', 
             }));
             resolve(statusData);
         });
@@ -158,18 +162,19 @@ const getRecentActivity = () => {
     });
 };
 
-// Helper 7: Get doctors on leave
+// Helper 7: Get doctors on leave (UPDATED to return IDs for merging)
 const getDoctorLeaves = (date) => {
     return new Promise((resolve, reject) => {
         const sql = `
-            SELECT d.first_name, d.last_name, l.reason 
+            SELECT d.id as doctorId, d.first_name, d.last_name, l.reason 
             FROM doctor_leaves l
             JOIN doctors d ON l.doctor_id = d.id
             WHERE l.leave_date = ?
         `;
         db.query(sql, [date], (err, results) => {
             if (err) return reject(err);
-            resolve(results || []);
+            // Return IDs and reason of doctors on leave today
+            resolve((results || []).map(r => ({ id: r.doctorId, reason: r.reason, lastName: r.last_name }))); 
         });
     });
 };
@@ -191,7 +196,7 @@ router.get('/summary', async (req, res) => {
             pendingAppts, 
             allApptDates, 
             todaySchedule, 
-            doctorStatus, 
+            rawDoctorStatus, 
             weeklyAppts,
             recentActivity,
             todaysLeaves 
@@ -211,23 +216,47 @@ router.get('/summary', async (req, res) => {
                 });
             }),
             getTodaySchedule(dynamicToday), 
-            getDoctorStatus(),
+            getDoctorStatus(), 
             getWeeklyApptData(),
             getRecentActivity(),
             getDoctorLeaves(dynamicToday)
         ]);
 
         const alerts = [];
+        const onLeaveDoctorIds = new Set(todaysLeaves.map(l => l.id));
 
-        if (todaysLeaves.length > 0) {
-            todaysLeaves.forEach(leave => {
-                alerts.push({
-                    title: "Doctor Absent",
-                    message: `Dr. ${leave.last_name} is on leave (${leave.reason}).`,
-                    type: "warning"
-                });
+        // FIX: Combine rawDoctorStatus with todaysLeaves to get final doctorStatus
+        const finalDoctorStatus = rawDoctorStatus.map(doc => {
+            if (onLeaveDoctorIds.has(doc.id)) {
+                const leave = todaysLeaves.find(l => l.id === doc.id);
+                return { 
+                    ...doc, 
+                    status: 'On Leave', 
+                    // Update 'next' field to show the reason for leave
+                    next: `On Leave: ${leave.reason}`, 
+                    dailyCount: 0 // Doctor has 0 availability when on leave
+                };
+            }
+            
+            // If not on leave, format the 'next' appointment time
+            if (doc.status === 'Available') {
+                doc.next = 'No appointments scheduled';
+            } else if (doc.next !== 'N/A') {
+                 doc.next = `Next: ${doc.next}`;
+            }
+
+            return doc;
+        });
+
+        // Update alerts based on actual leaves
+        todaysLeaves.forEach(leave => {
+            alerts.push({
+                title: "Doctor Absent",
+                message: `Dr. ${leave.lastName} is on leave (${leave.reason}).`,
+                type: "warning"
             });
-        }
+        });
+
 
         if (pendingAppts > 5) {
             alerts.push({
@@ -243,7 +272,7 @@ router.get('/summary', async (req, res) => {
             pendingAppts,
             apptDates: allApptDates,
             scheduleData: todaySchedule, 
-            doctorStatus: doctorStatus, 
+            doctorStatus: finalDoctorStatus, // Use the merged list
             weeklyAppts: weeklyAppts, 
             recentActivity: recentActivity, 
             alerts: alerts 

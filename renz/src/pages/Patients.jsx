@@ -255,7 +255,8 @@ export default function Patients() {
                     {col.label} {sortConfig.key === col.key && <span className="sort-indicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>} 
                   </th> 
                 ))}
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                {/* FIX: Removed right alignment and reduced padding for better visual spacing */}
+                <th style={{ paddingRight: '1rem' }}>Actions</th> 
               </tr>
             </thead>
             <tbody>
@@ -265,8 +266,10 @@ export default function Patients() {
                   <td style={{ fontWeight: '600', color: 'var(--text-dark)' }}>{p.name}</td>
                   <td>{p.phone}</td>
                   <td><span className={`badge ${p.status === 'Active' ? 'badge-green' : p.status === 'Pending' ? 'badge-blue' : 'badge-completed'}`}>{p.status}</span></td>
-                  <td style={{ textAlign: 'right' }}>
-                    <div className="action-group">
+                  
+                  {/* FIX: Adjusted padding in the data cell to align actions closer to content */}
+                  <td style={{ textAlign: 'right', paddingRight: '1.25rem' }}>
+                    <div className="action-group" style={{ justifyContent: 'flex-end' }}>
                       <button className="icon-btn view" onClick={() => openView(p)} title="View Details"><Eye size={18} /></button>
                       <button className="icon-btn edit" onClick={() => openEdit(p)} title="Edit"><Edit2 size={18} /></button>
                       <button className="icon-btn delete" onClick={() => setPatientToDelete(p)} title="Delete"><Trash2 size={18} /></button>

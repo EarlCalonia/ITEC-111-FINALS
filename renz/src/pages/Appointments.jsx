@@ -6,6 +6,21 @@ import '../styles/Appointments.css';
 // Constants
 const TIME_SLOTS = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM'];
 
+// UPDATED: Predefined list of common visit types for quick selection
+const VISIT_TYPES = [
+  'Annual Wellness Exam',
+  'New Patient Visit (Initial)',
+  'Follow-up Consultation',
+  'Acute Illness (Same-Day)',
+  'Chronic Disease Management',
+  'Vaccination / Immunization',
+  'Sports Physical',
+  'Pre-operative Clearance',
+  'Hospital Follow-up',
+  'Lab Results Review',
+  'Maternity / Prenatal Visit',
+];
+
 const getTodayString = () => {
   const today = new Date();
   const year = today.getFullYear();
@@ -36,9 +51,11 @@ export default function Appointments() {
   const [aptToDelete, setAptToDelete] = useState(null);
 
   // Form State
-  const [formData, setFormData] = useState({ patient_id: '', doctor_id: '', date: '', time: '', notes: '', status: 'Pending', type: 'General Visit' });
+  const [formData, setFormData] = useState({ patient_id: '', doctor_id: '', date: '', time: '', notes: '', status: 'Pending', type: '' }); // Initial type is set to ''
   
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false);
+  // NEW STATE for Visit Type Dropdown
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false); 
   const [patientSearch, setPatientSearch] = useState(''); 
   const [errors, setErrors] = useState({});
 
@@ -87,6 +104,13 @@ export default function Appointments() {
 
   const filteredPatientsList = patientsList.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()));
 
+  // NEW: Memoized Filtered Visit Types
+  const filteredVisitTypes = useMemo(() => {
+    if (!formData.type) return VISIT_TYPES;
+    const term = formData.type.toLowerCase();
+    return VISIT_TYPES.filter(type => type.toLowerCase().includes(term));
+  }, [formData.type]);
+
   // --- CHECK IF SLOT IS IN THE PAST ---
   const isTimeSlotPast = (slotTime, selectedDate) => {
     if (!selectedDate) return false;
@@ -103,7 +127,7 @@ export default function Appointments() {
     return slotDate < now;
   };
 
-  // --- CHECK LEAVE STATUS ---
+  // --- CHECK LEAVE STATUS (Used by dropdown and time slots) ---
   const getDoctorLeaveStatus = (selectedDate, doctorId) => {
     if (!selectedDate || !doctorId) return null;
     const doctor = doctorsList.find(d => d.id === parseInt(doctorId));
@@ -192,7 +216,10 @@ export default function Appointments() {
   const handleCreate = () => {
     setSelectedApt(null);
     setPatientSearch('');
-    setFormData({ patient_id: '', doctor_id: '', date: getTodayString(), time: '', notes: '', status: 'Pending', type: 'General Visit' });
+    
+    // IMPROVEMENT: Set type to '' so all options are shown initially
+    setFormData({ patient_id: '', doctor_id: '', date: getTodayString(), time: '', notes: '', status: 'Pending', type: '' }); 
+    
     setErrors({});
     setModalMode('create');
     setIsModalOpen(true);
@@ -207,6 +234,21 @@ export default function Appointments() {
 
     const leaveReason = getDoctorLeaveStatus(formData.date, formData.doctor_id);
     if (leaveReason) newErrors.time = `Doctor is unavailable: ${leaveReason}`;
+    
+    // --- VALIDATION: Check for patient's existing appointment on the same day ---
+    const existingPatientAppt = appointments.find(apt => 
+        // 1. Check if it's the same patient
+        apt.patient_id === parseInt(formData.patient_id) &&
+        // 2. Check if it's the same date
+        apt.date === formData.date &&
+        // 3. Exclude the current appointment if we are in 'reschedule' mode
+        apt.id !== selectedApt?.id
+    );
+
+    if (existingPatientAppt) {
+        newErrors.date = `Patient already has an appointment today at ${existingPatientAppt.time} with ${existingPatientAppt.doc}.`;
+    }
+    // --- END VALIDATION ---
 
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
@@ -275,7 +317,16 @@ export default function Appointments() {
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="table-container" style={{ borderRadius: 0, border: 'none' }}>
           <table>
-            <thead><tr><th style={{minWidth: '90px', paddingLeft: '1.25rem'}}>Time</th><th style={{minWidth: '140px'}}>Patient</th><th style={{minWidth: '160px', width: '35%'}}>Visit Info</th><th style={{minWidth: '110px'}}>Doctor</th><th style={{minWidth: '100px'}}>Status</th><th style={{textAlign:'right', paddingRight: '1.5rem'}}>ACTIONS</th></tr></thead>
+            <thead>
+              <tr>
+                <th style={{minWidth: '90px', paddingLeft: '1.25rem'}}>Time</th>
+                <th style={{minWidth: '140px', width: '25%'}}>Patient</th> {/* Rebalanced Width */}
+                <th style={{minWidth: '160px', width: '30%'}}>Visit Info</th> {/* Rebalanced Width */}
+                <th style={{minWidth: '120px', width: '20%'}}>Doctor</th>  {/* Rebalanced Width */}
+                <th style={{minWidth: '100px'}}>Status</th>
+                <th style={{textAlign:'right', paddingRight: '1.5rem'}}>ACTIONS</th>
+              </tr>
+            </thead>
             <tbody>
               {filteredAppointments.length === 0 ? ( <tr><td colSpan="6" style={{textAlign:'center', padding:'2rem', color:'#6b7280'}}>No appointments found for {dateFilter || 'this filter'}.</td></tr> ) : filteredAppointments.map((apt) => (
                 <tr key={apt.id}>
@@ -349,13 +400,59 @@ export default function Appointments() {
 
                     <div className="form-group">
                       <label className="form-label">Doctor</label>
-                      <select className="form-control" style={{ color: formData.doctor_id === "" ? '#94a3b8' : 'var(--text-dark)', borderColor: errors.doc ? 'var(--danger)' : 'var(--border)' }} value={formData.doctor_id} onChange={e => { setFormData({...formData, doctor_id: e.target.value}); setErrors({...errors, doc: null}); }}><option value="" disabled>Select a doctor...</option>{doctorsList.map(doc => ( <option key={doc.id} value={doc.id} style={{ color: 'var(--text-dark)' }}>Dr. {doc.firstName} {doc.lastName}</option> ))}</select>
+                      <select 
+                        className="form-control" 
+                        style={{ 
+                          color: formData.doctor_id === "" ? '#94a3b8' : 'var(--text-dark)', 
+                          borderColor: errors.doc ? 'var(--danger)' : 'var(--border)' 
+                        }} 
+                        value={formData.doctor_id} 
+                        onChange={e => { 
+                          setFormData({...formData, doctor_id: e.target.value}); 
+                          setErrors({...errors, doc: null}); 
+                        }}
+                      >
+                        <option value="" disabled>Select a doctor...</option>
+                        {doctorsList.map(doc => {
+                          const leaveReason = getDoctorLeaveStatus(formData.date, doc.id);
+                          const isUnavailable = !!leaveReason;
+
+                          return (
+                              <option 
+                                  key={doc.id} 
+                                  value={doc.id} 
+                                  // Disable the option if the doctor is on leave
+                                  disabled={isUnavailable} 
+                                  style={{ 
+                                      // Visually mark as unavailable
+                                      color: isUnavailable ? 'var(--danger)' : 'var(--text-dark)',
+                                      backgroundColor: isUnavailable ? '#fef2f2' : 'white',
+                                      fontStyle: isUnavailable ? 'italic' : 'normal'
+                                  }}
+                              >
+                                  `Dr. ${doc.firstName} ${doc.lastName}` 
+                                  {isUnavailable ? ` (On Leave: ${leaveReason})` : ''}
+                              </option>
+                          );
+                        })}
+                      </select>
                       {errors.doc && <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.doc}</span>}
                     </div>
 
                     <div className="form-group">
                       <label className="form-label">Date</label>
-                      <input type="date" className="form-control" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} min={getTodayString()} />
+                      <input 
+                        type="date" 
+                        className="form-control" 
+                        value={formData.date} 
+                        onChange={e => {
+                          setFormData({...formData, date: e.target.value, time: ''}); 
+                          setErrors({...errors, date: null});
+                        }} 
+                        min={getTodayString()} 
+                        style={{ borderColor: errors.date ? 'var(--danger)' : 'var(--border)' }} // Apply border color based on date error
+                      />
+                      {errors.date && <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.date}</span>}
                     </div>
 
                     <div className="form-group">
@@ -402,7 +499,51 @@ export default function Appointments() {
                     </div>
                     
                     <div className="form-row-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div className="form-group"><label className="form-label">Type of Visit</label><input className="form-control" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} placeholder="e.g. General Checkup" /></div>
+                      
+                      {/* UPDATED: Type of Visit Input with Custom Searchable Dropdown */}
+                      <div className="form-group patient-select-wrapper">
+                        <label className="form-label">Type of Visit</label>
+                        <div style={{position: 'relative'}}>
+                          <input 
+                              className="form-control" 
+                              value={formData.type} 
+                              onChange={e => {
+                                  setFormData({...formData, type: e.target.value}); 
+                                  setIsTypeDropdownOpen(true);
+                              }} 
+                              onFocus={() => setIsTypeDropdownOpen(true)}
+                              onBlur={() => setTimeout(() => setIsTypeDropdownOpen(false), 200)}
+                              placeholder="e.g. General Checkup" // Shortened placeholder to fix overlap
+                              autoComplete="off"
+                          />
+                          <ChevronDown size={16} style={{position:'absolute', right:'12px', top:'50%', transform:'translateY(-50%)', color:'var(--text-light)', pointerEvents:'none'}}/>
+
+                          {isTypeDropdownOpen && (
+                              <div className="patient-dropdown-list">
+                                  {filteredVisitTypes.map((type) => (
+                                      <div 
+                                          key={type} 
+                                          className="patient-dropdown-item" 
+                                          onMouseDown={() => { 
+                                              setFormData({...formData, type: type}); 
+                                              setIsTypeDropdownOpen(false); 
+                                          }}
+                                      >
+                                          {type}
+                                      </div>
+                                  ))}
+                                  {filteredVisitTypes.length === 0 && formData.type && (
+                                    <div className="patient-dropdown-empty">No matching types found. New type will be saved.</div>
+                                  )}
+                                  {filteredVisitTypes.length === 0 && !formData.type && (
+                                    <div className="patient-dropdown-empty">Start typing to search or select below.</div>
+                                  )}
+                              </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* END UPDATED */}
+
                       <div className="form-group"><label className="form-label">Status</label><select className="form-control" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}><option value="Pending">Pending</option><option value="Confirmed">Confirmed</option><option value="Completed">Completed</option><option value="Cancelled">Cancelled</option></select></div>
                     </div>
 
