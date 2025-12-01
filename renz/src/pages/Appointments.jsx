@@ -4,7 +4,12 @@ import { Eye, Calendar as CalendarIcon, X, Clock, Mail, FileText, Plus, Search, 
 import '../styles/Appointments.css';
 
 // Constants
-const TIME_SLOTS = ['09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM'];
+const TIME_SLOTS = [
+  '08:00 AM', '08:30 AM', 
+  '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', 
+  '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM', 
+  '05:00 PM', '05:30 PM' // Last bookable slot for a 6:00 PM shift end
+];
 
 // UPDATED: Predefined list of common visit types for quick selection
 const VISIT_TYPES = [
@@ -54,9 +59,12 @@ export default function Appointments() {
   const [formData, setFormData] = useState({ patient_id: '', doctor_id: '', date: '', time: '', notes: '', status: 'Pending', type: '' }); // Initial type is set to ''
   
   const [isPatientDropdownOpen, setIsPatientDropdownOpen] = useState(false);
-  // NEW STATE for Visit Type Dropdown
-  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false); 
+  // NEW STATE for Doctor Dropdown
+  const [isDoctorDropdownOpen, setIsDoctorDropdownOpen] = useState(false); 
   const [patientSearch, setPatientSearch] = useState(''); 
+  // NEW STATE for Doctor Search Input
+  const [doctorSearch, setDoctorSearch] = useState('');
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false); 
   const [errors, setErrors] = useState({});
 
   // Message Box State
@@ -101,8 +109,18 @@ export default function Appointments() {
     if (urlDate) setDateFilter(urlDate);
   }, [searchParams]);
 
-
   const filteredPatientsList = patientsList.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()));
+
+  // Memoized Filtered Doctors List for searching
+  const filteredDoctorsList = useMemo(() => {
+    const term = doctorSearch.toLowerCase();
+    return doctorsList.filter(doc => {
+        const name = `Dr. ${doc.firstName} ${doc.lastName}`.toLowerCase();
+        const role = doc.role.toLowerCase();
+        return name.includes(term) || role.includes(term);
+    });
+  }, [doctorsList, doctorSearch]);
+
 
   // NEW: Memoized Filtered Visit Types
   const filteredVisitTypes = useMemo(() => {
@@ -161,6 +179,8 @@ export default function Appointments() {
     const [endH, endM] = doctor.scheduleEnd.split(':').map(Number);
     const endMinutes = endH * 60 + endM;
 
+    // Shift end time is the time the LAST appointment must END.
+    // So, we check if the slot START time is less than the shift END time.
     return slotMinutes >= startMinutes && slotMinutes < endMinutes;
   };
 
@@ -199,6 +219,7 @@ export default function Appointments() {
     if (isEditLocked(apt.status)) return;
     setSelectedApt(apt);
     setPatientSearch(apt.patient); 
+    setDoctorSearch(apt.doc); // Set doctor search field
     setFormData({ 
         patient_id: apt.patient_id, 
         doctor_id: apt.doctor_id, 
@@ -216,6 +237,7 @@ export default function Appointments() {
   const handleCreate = () => {
     setSelectedApt(null);
     setPatientSearch('');
+    setDoctorSearch(''); // Clear doctor search field
     
     // IMPROVEMENT: Set type to '' so all options are shown initially
     setFormData({ patient_id: '', doctor_id: '', date: getTodayString(), time: '', notes: '', status: 'Pending', type: '' }); 
@@ -400,45 +422,62 @@ export default function Appointments() {
                       {errors.patient && <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.patient}</span>}
                     </div>
 
-                    <div className="form-group">
+                    <div className="form-group patient-select-wrapper">
                       <label className="form-label">Doctor</label>
-                      <select 
-                        className="form-control" 
-                        style={{ 
-                          color: formData.doctor_id === "" ? '#94a3b8' : 'var(--text-dark)', 
-                          borderColor: errors.doc ? 'var(--danger)' : 'var(--border)' 
-                        }} 
-                        value={formData.doctor_id} 
-                        onChange={e => { 
-                          setFormData({...formData, doctor_id: e.target.value}); 
-                          setErrors({...errors, doc: null}); 
-                        }}
-                      >
-                        <option value="" disabled>Select a doctor...</option>
-                        {doctorsList.map(doc => {
-                          const leaveReason = getDoctorLeaveStatus(formData.date, doc.id);
-                          const isUnavailable = !!leaveReason;
+                      <div style={{position: 'relative'}}>
+                        {/* 1. Searchable Input */}
+                        <input 
+                          className="form-control" 
+                          style={{ borderColor: errors.doc ? 'var(--danger)' : 'var(--border)' }} 
+                          value={doctorSearch} 
+                          onChange={e => { 
+                            // Update search term and open dropdown
+                            setDoctorSearch(e.target.value); 
+                            setIsDoctorDropdownOpen(true); 
+                            // Clear doctor_id if search starts
+                            setFormData({...formData, doctor_id: ''});
+                            setErrors({...errors, doc: null}); 
+                          }} 
+                          onFocus={() => setIsDoctorDropdownOpen(true)} 
+                          onBlur={() => setTimeout(() => setIsDoctorDropdownOpen(false), 200)} 
+                          placeholder="Search doctor or specialization..." 
+                          autoComplete="off" 
+                        />
+                        <ChevronDown size={16} style={{position:'absolute', right:'12px', top:'50%', transform:'translateY(-50%)', color:'var(--text-light)', pointerEvents:'none'}}/>
 
-                          return (
-                              <option 
-                                  key={doc.id} 
-                                  value={doc.id} 
-                                  // Disable the option if the doctor is on leave
-                                  disabled={isUnavailable} 
-                                  style={{ 
-                                      // Visually mark as unavailable
-                                      color: isUnavailable ? 'var(--danger)' : 'var(--text-dark)',
-                                      backgroundColor: isUnavailable ? '#fef2f2' : 'white',
-                                      fontStyle: isUnavailable ? 'italic' : 'normal'
-                                  }}
-                              >
-                                  {/* FIX: Clean symbols from the doctor's name */}
-                                  {`Dr. ${doc.firstName} ${doc.lastName}`.trim().replace(/['$]/g, '')} 
-                                  {isUnavailable ? ` (On Leave: ${leaveReason})` : ''}
-                              </option>
-                          );
-                        })}
-                      </select>
+                        {/* 2. Doctor Dropdown List */}
+                        {isDoctorDropdownOpen && ( 
+                          <div className="patient-dropdown-list"> 
+                            {filteredDoctorsList.length > 0 ? filteredDoctorsList.map((doc) => {
+                                const isUnavailable = getDoctorLeaveStatus(formData.date, doc.id);
+                                const doctorName = `Dr. ${doc.firstName} ${doc.lastName}`.trim().replace(/['$]/g, '');
+
+                                return (
+                                  <div 
+                                    key={doc.id} 
+                                    className="patient-dropdown-item" 
+                                    onMouseDown={() => { 
+                                      setDoctorSearch(doctorName); 
+                                      setFormData({...formData, doctor_id: doc.id}); 
+                                      setIsDoctorDropdownOpen(false); 
+                                      setErrors({...errors, doc: null});
+                                    }}
+                                    style={{ 
+                                        color: isUnavailable ? 'var(--danger)' : 'var(--text-dark)',
+                                        backgroundColor: isUnavailable ? '#fef2f2' : 'white',
+                                        cursor: isUnavailable ? 'not-allowed' : 'pointer',
+                                    }}
+                                  >
+                                    <div>{doctorName} ({doc.role})</div>
+                                    {isUnavailable && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>On Leave: {isUnavailable}</span>}
+                                  </div> 
+                                );
+                            }) : ( 
+                              <div className="patient-dropdown-empty">No doctors found.</div> 
+                            )} 
+                          </div> 
+                        )}
+                      </div>
                       {errors.doc && <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.doc}</span>}
                     </div>
 

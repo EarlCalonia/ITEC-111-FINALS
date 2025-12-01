@@ -61,7 +61,6 @@ export default function Doctors() {
 
   // --- 1. FETCH DATA (FIXED) ---
   const fetchDoctors = async () => {
-// ... (omitted fetchDoctors logic)
     try {
       // Use 127.0.0.1 to avoid localhost resolution issues
       const res = await fetch('http://127.0.0.1:5000/api/doctors');
@@ -105,12 +104,14 @@ export default function Doctors() {
 
   // 2. SAVE DOCTOR (FIXED URL)
   const handleSaveDoctor = async (e) => {
-// ... (omitted handleSaveDoctor logic)
     e.preventDefault();
     const newErrors = {};
     if (!doctorForm.firstName) newErrors.firstName = "First Name is required";
     if (!doctorForm.lastName) newErrors.lastName = "Last Name is required";
     if (!doctorForm.email) newErrors.email = "Email is required";
+    
+    // FIX: Require Specialization/Role field
+    if (!doctorForm.role) newErrors.role = "Specialization is required";
     
     // NEW: Robust phone validation for length and content
     // We check if the input is empty OR if it's not exactly 11 digits OR if it contains non-digits
@@ -144,7 +145,6 @@ export default function Doctors() {
 
   // 3. BLOCK TIME (FIXED URL)
   const handleOpenBlock = (specificId = '') => { 
-// ... (omitted handleOpenBlock logic)
     setBlockingDoctorId(specificId ? specificId.toString() : ''); 
     setIsDoctorFixed(!!specificId); 
     setBlockForm({ reason: '', date: '', endDate: '', notes: '' }); 
@@ -153,7 +153,6 @@ export default function Doctors() {
   };
   
   const handleSaveBlock = async (e) => {
-// ... (omitted handleSaveBlock logic)
     e.preventDefault();
     const newErrors = {};
     const todayStr = getTodayString(); // Get today's date string (YYYY-MM-DD)
@@ -209,12 +208,10 @@ export default function Doctors() {
 
   // 4. REMOVE LEAVE (FIXED URL)
   const handleRemoveLeave = (leave) => {
-// ... (omitted handleRemoveLeave logic)
     setLeaveToDelete(leave); 
   };
 
   const confirmRemoveLeave = async () => {
-// ... (omitted confirmRemoveLeave logic)
     if (leaveToDelete) {
         try {
             await fetch(`http://127.0.0.1:5000/api/doctors/leaves/${leaveToDelete.id}`, { method: 'DELETE' });
@@ -230,7 +227,6 @@ export default function Doctors() {
 
   // 5. DELETE DOCTOR (FIXED URL)
   const confirmDelete = async () => {
-// ... (omitted confirmDelete logic)
     if (doctorToDelete) {
         try {
             await fetch(`http://127.0.0.1:5000/api/doctors/${doctorToDelete.id}`, { method: 'DELETE' });
@@ -342,6 +338,7 @@ export default function Doctors() {
                     <label className="form-label">Specialization</label>
                     <div style={{position: 'relative'}}>
                         <input 
+                          // ADDED: Required validation is now handled in JS logic, but border color uses the new error state
                           className="form-control" 
                           style={{ borderColor: errors.role ? 'var(--danger)' : 'var(--border)' }} 
                           placeholder="e.g. General Practitioner or type new" 
@@ -381,11 +378,37 @@ export default function Doctors() {
                              </div>
                         )}
                     </div>
+                    {/* Display Error Message for Specialization */}
                     {errors.role && <span style={{fontSize:'0.75rem', color:'var(--danger)'}}>{errors.role}</span>}
                   </div>
                   {/* END UPDATED */}
                   
-                  <div className="form-row-2"><div className="form-group"><label className="form-label">Shift Start</label><input type="time" className="form-control" value={doctorForm.scheduleStart} onChange={e => setDoctorForm({...doctorForm, scheduleStart: e.target.value})}/></div><div className="form-group"><label className="form-label">Shift End</label><input type="time" className="form-control" value={doctorForm.scheduleEnd} onChange={e => setDoctorForm({...doctorForm, scheduleEnd: e.target.value})}/></div></div>
+                  <div className="form-row-2">
+                    <div className="form-group">
+                      <label className="form-label">Shift Start</label>
+                      {/* FIX: Set min/max constraints to limit shifts from 08:00 to 18:00 */}
+                      <input 
+                        type="time" 
+                        className="form-control" 
+                        value={doctorForm.scheduleStart} 
+                        onChange={e => setDoctorForm({...doctorForm, scheduleStart: e.target.value})}
+                        min="08:00" 
+                        max="18:00" 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Shift End</label>
+                      {/* FIX: Set min/max constraints to limit shifts from 08:00 to 18:00 */}
+                      <input 
+                        type="time" 
+                        className="form-control" 
+                        value={doctorForm.scheduleEnd} 
+                        onChange={e => setDoctorForm({...doctorForm, scheduleEnd: e.target.value})}
+                        min="08:00" 
+                        max="18:00" 
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="modal-footer"><button type="button" className="btn btn-outline" onClick={() => setIsDoctorModalOpen(false)}>Cancel</button><button type="submit" className="btn btn-primary">Save Changes</button></div>
@@ -395,7 +418,6 @@ export default function Doctors() {
       )}
 
       {/* Block/Leave Modal */}
-// ... (omitted Block/Leave Modal and Confirmation Modals - no changes here)
       {isBlockModalOpen && (
         <div className="modal-overlay" onClick={() => setIsBlockModalOpen(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
