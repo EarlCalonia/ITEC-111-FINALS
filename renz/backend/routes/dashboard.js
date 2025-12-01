@@ -73,7 +73,7 @@ const getDoctorStatus = () => {
             SELECT 
                 d.id, d.first_name, d.last_name, 
             (SELECT MIN(a.time) FROM appointments a WHERE a.doctor_id = d.id AND DATE(a.date) = CURDATE() AND a.status != 'Cancelled' AND a.status != 'Completed') AS next_appt_time,
-            (SELECT COUNT(a.id) FROM appointments a WHERE a.doctor_id = d.id AND DATE(a.date) = CURDATE() AND a.status != 'Cancelled') AS daily_count
+            (SELECT COUNT(a.id) FROM appointments a WHERE a.doctor_id = d.id AND DATE(a.date) = CURDATE() AND a.status != 'Cancelled' AND a.status != 'Completed') AS daily_count
             FROM doctors d
         `;
         db.query(sql, (err, results) => {
@@ -84,7 +84,7 @@ const getDoctorStatus = () => {
                 id: doc.id, // KEEP ID for matching with leaves later
                 name: `Dr. ${doc.last_name}`,
                 dailyCount: doc.daily_count || 0,
-                // Initial status based only on appointments
+                // Initial status based only on UNCOMPLETED/UNCA cancelled appointments
                 status: doc.daily_count > 0 ? 'Busy' : 'Available',
                 next: doc.next_appt_time || 'N/A', 
             }));
@@ -182,14 +182,14 @@ const getDoctorLeaves = (date) => {
 // --- Main Route ---
 
 router.get('/summary', async (req, res) => {
+    // Determine the current local date (YYYY-MM-DD)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const dynamicToday = `${year}-${month}-${day}`;
+    
     try {
-        // 1. Calculate Dynamic Today using LOCAL time
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const dynamicToday = `${year}-${month}-${day}`;
-
         const [
             totalPatients, 
             todayAppts, 
@@ -225,23 +225,23 @@ router.get('/summary', async (req, res) => {
         const alerts = [];
         const onLeaveDoctorIds = new Set(todaysLeaves.map(l => l.id));
 
-        // FIX: Combine rawDoctorStatus with todaysLeaves to get final doctorStatus
+        // FIX: Process doctor status for display and leave overrides
         const finalDoctorStatus = rawDoctorStatus.map(doc => {
             if (onLeaveDoctorIds.has(doc.id)) {
                 const leave = todaysLeaves.find(l => l.id === doc.id);
                 return { 
                     ...doc, 
                     status: 'On Leave', 
-                    // Update 'next' field to show the reason for leave
                     next: `On Leave: ${leave.reason}`, 
-                    dailyCount: 0 // Doctor has 0 availability when on leave
+                    dailyCount: 0 
                 };
             }
             
-            // If not on leave, format the 'next' appointment time
+            // Refine status text for available/busy doctors
             if (doc.status === 'Available') {
-                doc.next = 'No appointments scheduled';
-            } else if (doc.next !== 'N/A') {
+                doc.next = 'No active appointments scheduled';
+            } else if (doc.next && doc.next !== 'N/A') {
+                 // doc.next is the earliest time string (e.g., '10:00 AM')
                  doc.next = `Next: ${doc.next}`;
             }
 
@@ -279,8 +279,11 @@ router.get('/summary', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Dashboard summary error:', error);
-        res.json({
+        // Log the full error to the server console
+        console.error('Dashboard summary API crash:', error);
+        
+        // Return a structured error message to the frontend to prevent blank data
+        res.status(500).json({
             totalPatients: 0,
             todayAppts: 0,
             pendingAppts: 0,
@@ -289,7 +292,7 @@ router.get('/summary', async (req, res) => {
             doctorStatus: [], 
             weeklyAppts: [], 
             recentActivity: [], 
-            alerts: [{ title: "System Error", message: "Could not load data." }] 
+            alerts: [{ title: "System Error", message: "Failed to fetch dashboard data due to a server error." }] 
         });
     }
 });

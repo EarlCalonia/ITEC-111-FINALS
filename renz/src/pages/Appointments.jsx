@@ -231,22 +231,26 @@ export default function Appointments() {
     if (!formData.patient_id) newErrors.patient = "Please select a patient from the list";
     if (!formData.doctor_id) newErrors.doc = "Please select a doctor";
     if (!formData.time) newErrors.time = "Please select a time slot";
+    // FIX: Add validation for Type of Visit
+    if (!formData.type) newErrors.type = "Type of Visit is required";
 
     const leaveReason = getDoctorLeaveStatus(formData.date, formData.doctor_id);
     if (leaveReason) newErrors.time = `Doctor is unavailable: ${leaveReason}`;
     
-    // --- VALIDATION: Check for patient's existing appointment on the same day ---
+    // --- VALIDATION: Check for patient's existing UNCOMPLETED appointment on the same day ---
     const existingPatientAppt = appointments.find(apt => 
         // 1. Check if it's the same patient
         apt.patient_id === parseInt(formData.patient_id) &&
         // 2. Check if it's the same date
         apt.date === formData.date &&
-        // 3. Exclude the current appointment if we are in 'reschedule' mode
+        // 3. Check if the status is CONFIRMED or PENDING (i.e., uncompleted or not cancelled)
+        (apt.status === 'Confirmed' || apt.status === 'Pending') &&
+        // 4. Exclude the current appointment if we are in 'reschedule' mode
         apt.id !== selectedApt?.id
     );
 
     if (existingPatientAppt) {
-        newErrors.date = `Patient already has an appointment today at ${existingPatientAppt.time} with ${existingPatientAppt.doc}.`;
+        newErrors.date = `Patient already has a ${existingPatientAppt.status} appointment today at ${existingPatientAppt.time} with ${existingPatientAppt.doc}. Please complete or cancel it first.`;
     }
     // --- END VALIDATION ---
 
@@ -428,7 +432,8 @@ export default function Appointments() {
                                       fontStyle: isUnavailable ? 'italic' : 'normal'
                                   }}
                               >
-                                  `Dr. ${doc.firstName} ${doc.lastName}` 
+                                  {/* FIX: Clean symbols from the doctor's name */}
+                                  {`Dr. ${doc.firstName} ${doc.lastName}`.trim().replace(/['$]/g, '')} 
                                   {isUnavailable ? ` (On Leave: ${leaveReason})` : ''}
                               </option>
                           );
@@ -504,9 +509,12 @@ export default function Appointments() {
                         <div style={{position: 'relative'}}>
                           <input 
                               className="form-control" 
+                              // FIX: Apply border color based on type error
+                              style={{ borderColor: errors.type ? 'var(--danger)' : 'var(--border)' }} 
                               value={formData.type} 
                               onChange={e => {
                                   setFormData({...formData, type: e.target.value}); 
+                                  setErrors({...errors, type: null}); // Clear error on change
                                   setIsTypeDropdownOpen(true);
                               }} 
                               onFocus={() => setIsTypeDropdownOpen(true)}
@@ -540,6 +548,7 @@ export default function Appointments() {
                               </div>
                           )}
                         </div>
+                        {errors.type && <span style={{fontSize:'0.75rem', color:'var(--danger)', marginTop:'4px'}}>{errors.type}</span>} {/* <-- Display Type Error */}
                       </div>
                       {/* END UPDATED */}
 
